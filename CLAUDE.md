@@ -49,7 +49,7 @@ src/plugin.ts                 진입점: 액션 등록 + streamDeck.connect()
   └─ actions/now-playing.ts   Encoder(다이얼) 액션 — UI/이벤트만 담당
         └─ media/controller.ts  createMediaController(): process.platform 분기 (유일한 분기점)
               ├─ media/darwin.ts   macOS 브리지 — vendored mediaremote-adapter (WIRED)
-              └─ media/windows.ts  Windows 브리지 (SMTC) — 스텁
+              └─ media/windows.ts  Windows 브리지 — vendored smtc-helper(.NET) (구현, ⚠ 미검증)
         media/types.ts          MediaController 인터페이스 + NowPlaying 타입 (컨슈머가 의존하는 유일한 계약)
 ```
 
@@ -75,7 +75,7 @@ src/plugin.ts                 진입점: 액션 등록 + streamDeck.connect()
 채택한 브리지:
 
 - **macOS** (✅ wired): [`ungive/mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter) v0.7.6 (BSD-3). `/usr/bin/perl`은 MediaRemote 사용 권한이 있고, perl이 동적 로드하는 헬퍼 프레임워크가 stdout으로 곡 정보를 출력한다 — 15.4+ 제약을 우회.
-- **Windows** (🚧 스텁): SMTC(`GlobalSystemMediaTransportControlsSessionManager`) — 곡 정보 + 제어. 브라우저의 YouTube Music 포함 대부분 플레이어 지원.
+- **Windows** (🚧 구현·미검증): vendored `smtc-helper`(.NET) exe 에 shell out → SMTC(`GlobalSystemMediaTransportControlsSessionManager`)로 곡 정보 + 제어. 브라우저의 YouTube Music 포함 대부분 플레이어 지원. **Windows 머신에서 빌드·검증 필요**(이 저장소는 macOS에서 작성됨).
 
 ### macOS 브리지 동작 (darwin.ts)
 
@@ -96,11 +96,32 @@ cd media_controller
 
 clang으로 유니버설(x86_64+arm64) 컴파일 → ad-hoc 서명 → `vendor/`에 배치 → `test`로 검증. 외부 서드파티 소스를 컴파일·실행하므로 자동 권한 모드에서 차단될 수 있다(명시적 승인 필요).
 
+### Windows 브리지 동작 (windows.ts) — ⚠ 미검증
+
+darwin.ts 와 **동일한 구조**(영속 stream 캐시 + 단발 send + 서킷브레이커 + 시그널 정리). macOS의 perl+프레임워크 자리에 vendored `smtc-helper.exe`(.NET, `Windows.Media.Control`)가 들어간다.
+
+호출 형태: `<vendor>/smtc-helper/smtc-helper.exe <get|stream|send> [cmd]`
+
+- **곡 정보**: `stream` 이 SMTC 변경마다 줄단위 JSON(payload 또는 `"null"`)을 출력 → 캐시. 키는 macOS와 동일(`title`/`artist`/`album`/`playing`/`artworkData`/`artworkMimeType`).
+- **제어**: `send playpause|next|previous` → `TryTogglePlayPauseAsync`/`TrySkipNextAsync`/`TrySkipPreviousAsync`.
+- **헬퍼 소스**: [smtc-helper/](media_controller/smtc-helper/) (`Program.cs` + `smtc-helper.csproj`, `net8.0-windows10.0.19041.0`).
+
+헬퍼 빌드·vendor (Windows + .NET 8 SDK 필요):
+
+```powershell
+cd media_controller
+pwsh scripts/build-smtc-helper.ps1                # 프레임워크 의존(작음, .NET 런타임 필요)
+pwsh scripts/build-smtc-helper.ps1 -SelfContained # 자체 포함(런타임 불필요, 큼)
+```
+
+검증되면 SPEC/이 문서의 "미검증" 표기를 제거하고, vendored `smtc-helper.exe`를 커밋한다(`*.sdPlugin/vendor/`는 gitignore 대상 아님).
+
 ### 현재 wired vs Roadmap
 
-**Wired**: 플러그인 골격, Encoder 액션, 컨트롤 매핑, 터치스트립 stream 캐시 렌더링(dedupe), 플랫폼 분기, `MediaController` 계약, **macOS 곡 정보 + 재생/일시정지/다음/이전 (vendored mediaremote-adapter)**, 브리지 오류 시 "설정 필요"/"재생 없음" graceful degradation.
+**Wired (검증됨, macOS)**: 플러그인 골격, Encoder 액션, 컨트롤 매핑, 터치스트립 stream 캐시 렌더링(dedupe), 플랫폼 분기, `MediaController` 계약, **macOS 곡 정보 + 재생/일시정지/다음/이전 (vendored mediaremote-adapter)**, 브리지 오류 시 "설정 필요"/"재생 없음" graceful degradation.
+
+**구현됨 · 미검증 (Windows)**: `media/windows.ts` + vendored `smtc-helper`(.NET). 코드/구조는 macOS와 동일 패턴으로 완성. **Windows 머신에서 빌드(`scripts/build-smtc-helper.ps1`)·실행 검증이 남아 있다** — 검증 후 `smtc-helper.exe` 커밋 + "미검증" 표기 제거.
 
 **Roadmap**:
 
-1. **Windows** (`media/windows.ts` 스텁): SMTC를 Node에서 호출(NodeRT `windows.media.control` 또는 소형 네이티브 헬퍼) → 세션 MediaProperties 정규화, `TryTogglePlayPause`/`TrySkipNext`/`TrySkipPrevious`.
-2. 배포 시 프레임워크 **공증(notarization)** 검토 — 현재는 ad-hoc 서명이라 본인 머신/개발용엔 충분하나 광범위 배포엔 Gatekeeper 이슈 가능.
+1. 배포 시 프레임워크 **공증(notarization)** 검토 — 현재는 ad-hoc 서명이라 본인 머신/개발용엔 충분하나 광범위 배포엔 Gatekeeper 이슈 가능.

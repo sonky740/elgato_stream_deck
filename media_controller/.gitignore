@@ -4,3 +4,7 @@ node_modules/
 # Stream Deck files
 *.sdPlugin/bin
 *.sdPlugin/logs
+
+# .NET (smtc-helper 빌드 산출물 — vendor 결과만 커밋)
+smtc-helper/bin/
+smtc-helper/obj/

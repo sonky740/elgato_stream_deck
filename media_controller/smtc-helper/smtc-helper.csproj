@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SMTC 브리지 헬퍼. net8.0-windows10.0.19041.0 타깃이라야 Windows.Media.Control(WinRT) 투영을 쓸 수 있다.
+    빌드/vendor 는 ../scripts/build-smtc-helper.ps1 참고 (publish 옵션으로 크기/자체포함 여부 조절).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <AssemblyName>smtc-helper</AssemblyName>
+    <RootNamespace>SmtcHelper</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>
