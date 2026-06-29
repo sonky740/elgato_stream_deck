@@ -1,0 +1,42 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/layout.json",
+	"id": "now-playing",
+	"items": [
+		{
+			"key": "albumArt",
+			"type": "pixmap",
+			"rect": [8, 10, 80, 80],
+			"value": "imgs/actions/now-playing/encoder-icon"
+		},
+		{
+			"key": "title",
+			"type": "text",
+			"rect": [98, 12, 100, 28],
+			"font": { "size": 16, "weight": 600 },
+			"alignment": "left",
+			"color": "#ffffff",
+			"text-overflow": "ellipsis",
+			"value": "Media Controller"
+		},
+		{
+			"key": "artist",
+			"type": "text",
+			"rect": [98, 44, 100, 22],
+			"font": { "size": 13, "weight": 400 },
+			"alignment": "left",
+			"color": "#9aa0a6",
+			"text-overflow": "ellipsis",
+			"value": "연결 대기 중"
+		},
+		{
+			"key": "album",
+			"type": "text",
+			"rect": [98, 66, 100, 20],
+			"font": { "size": 11, "weight": 400 },
+			"alignment": "left",
+			"color": "#5f6368",
+			"text-overflow": "ellipsis",
+			"value": ""
+		}
+	]
+}
