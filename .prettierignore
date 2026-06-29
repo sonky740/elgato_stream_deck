@@ -1,0 +1,11 @@
+# 의존성 / 생성물
+**/node_modules/
+**/bin/
+**/logs/
+package-lock.json
+
+# vendored 서드파티 (mediaremote-adapter 등)
+**/vendor/
+
+# 배포 산출물
+**/*.streamDeckPlugin
