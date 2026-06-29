@@ -1,0 +1,12 @@
+# Vendored: mediaremote-adapter
+
+- Source: https://github.com/ungive/mediaremote-adapter
+- Version: v0.7.6 (commit 3ac3d4b)
+- License: BSD-3-Clause (see LICENSE)
+
+`MediaRemoteAdapter.framework` is built from source (clang, universal x86_64+arm64,
+ad-hoc signed). Rebuild steps are documented in the repo root CLAUDE.md.
+
+Used out-of-process via `/usr/bin/perl mediaremote-adapter.pl <framework> <get|stream|send ...>`
+to read now-playing info and send media commands on macOS 15.4+, where in-process
+MediaRemote access is blocked.
