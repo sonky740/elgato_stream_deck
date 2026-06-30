@@ -8,8 +8,8 @@
 			"Name": "Now Playing",
 			"UUID": "com.sonky.media-controller.now-playing",
 			"Icon": "imgs/actions/now-playing/icon",
-			"Tooltip": "현재 재생 중인 곡을 표시하고 제어합니다. 회전: 이전/다음 곡, 누름/터치: 재생·일시정지.",
-			"Controllers": ["Encoder"],
+			"Tooltip": "현재 재생 중인 곡을 표시하고 제어합니다. 다이얼: 회전=이전/다음, 누름/터치=재생·일시정지. 키: 앨범아트·제목 표시, 누름=재생·일시정지.",
+			"Controllers": ["Encoder", "Keypad"],
 			"Encoder": {
 				"Icon": "imgs/actions/now-playing/encoder-icon",
 				"layout": "layouts/now-playing.json",
@@ -22,6 +22,30 @@
 			"States": [
 				{
 					"Image": "imgs/actions/now-playing/key"
+				}
+			]
+		},
+		{
+			"Name": "Next Track",
+			"UUID": "com.sonky.media-controller.next",
+			"Icon": "imgs/actions/next/icon",
+			"Tooltip": "다음 곡으로 넘깁니다.",
+			"Controllers": ["Keypad"],
+			"States": [
+				{
+					"Image": "imgs/actions/next/key"
+				}
+			]
+		},
+		{
+			"Name": "Previous Track",
+			"UUID": "com.sonky.media-controller.previous",
+			"Icon": "imgs/actions/previous/icon",
+			"Tooltip": "이전 곡으로 넘깁니다.",
+			"Controllers": ["Keypad"],
+			"States": [
+				{
+					"Image": "imgs/actions/previous/key"
 				}
 			]
 		}

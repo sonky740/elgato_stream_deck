@@ -45,8 +45,10 @@ streamdeck list                               # 설치된 플러그인 목록
 데이터 흐름은 한 방향이고 플랫폼 의존은 한 군데로 격리되어 있다:
 
 ```
-src/plugin.ts                 진입점: 액션 등록 + streamDeck.connect()
-  └─ actions/now-playing.ts   Encoder(다이얼) 액션 — UI/이벤트만 담당
+src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션에 주입 + 등록 + streamDeck.connect()
+  ├─ actions/now-playing.ts   다이얼+키 액션 — 표시·재생/정지 (surface 별 렌더 분기)
+  ├─ actions/next.ts          키 전용 액션 — 누름 → next()
+  ├─ actions/previous.ts      키 전용 액션 — 누름 → previous()
         └─ media/controller.ts  createMediaController(): process.platform 분기 (유일한 분기점)
               ├─ media/darwin.ts   macOS 브리지 — vendored mediaremote-adapter (WIRED)
               └─ media/windows.ts  Windows 브리지 — vendored smtc-helper(.NET) (구현, ⚠ 미검증)
@@ -54,14 +56,16 @@ src/plugin.ts                 진입점: 액션 등록 + streamDeck.connect()
 ```
 
 - **액션은 플랫폼을 모른다.** `MediaController` 인터페이스(`getNowPlaying`/`playPause`/`next`/`previous`)에만 의존한다. 새 미디어 백엔드(예: 특정 앱의 로컬 API)를 추가해도 `controller.ts`의 분기와 새 구현 파일만 손대면 된다.
-- **컨트롤 매핑** (Stream Deck + 다이얼 1개 통합): 회전 → `next`/`previous`, 누름·터치 → `playPause`. `onDialRotate`/`onDialDown`/`onTouchTap`에서 처리.
-- **터치스트립 렌더링**: 액션은 `POLL_INTERVAL_MS`(1s)마다 `getNowPlaying()`을 호출하지만, 이는 macOS 브리지의 **영속 `stream` 프로세스가 갱신해 둔 캐시 값을 읽을 뿐**이라 가볍다(곡 변경은 stream이 push). 인스턴스(다이얼)별 타이머를 `#timers` Map으로 관리하고, 직전 렌더와 시그니처(`title artist album`)가 같으면 `setFeedback`을 건너뛴다(`#lastSig` — 앨범아트 base64 재전송 방지).
+- **컨트롤러 1개 공유**: plugin.ts에서 `createMediaController()`를 1회 호출해 세 액션 생성자에 주입한다. 하나의 OS 미디어 세션 = 하나의 브리지로, 중복 `stream` 프로세스를 막는다. Next/Previous는 단발 `send`만 하므로 stream 프로세스를 띄우지 않는다(`#ensureStream`는 `getNowPlaying`에서만 호출되는 lazy 경로).
+- **컨트롤 매핑**: (다이얼) 회전 → `next`/`previous`, 누름·터치 → `playPause` (`onDialRotate`/`onDialDown`/`onTouchTap`). (키) Now Playing 키 누름 → `playPause` (`onKeyDown`), Next/Previous 키 누름 → `next`/`previous`. 키는 누름 1동작뿐이라 회전 대체로 Next/Previous를 별도 액션으로 분리했다.
+- **렌더링 (surface 별 분기)**: 액션은 `POLL_INTERVAL_MS`(1s)마다 `getNowPlaying()`을 호출하지만, 이는 브리지의 **영속 `stream` 프로세스가 갱신해 둔 캐시 값을 읽을 뿐**이라 가볍다(곡 변경은 stream이 push). 인스턴스별 타이머를 `#timers` Map으로 관리하고, 직전 렌더와 시그니처(`title artist album`)가 같으면 렌더를 건너뛴다(`#lastSig` — 앨범아트 base64 재전송 방지). `#render`에서 `isDial()`→`setFeedback`(터치스트립 레이아웃), 키→`setImage`(앨범아트 data URI; 없으면 `undefined`로 manifest 기본 키 아이콘) + `setTitle`(곡 제목)로 갈린다.
 
 ### 손대기 전에 알아야 할 결합 관계 (gotchas)
 
-- **레이아웃 키 ↔ setFeedback 키**: [layouts/now-playing.json](media_controller/com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 item `key`(`albumArt`/`title`/`artist`/`album`)와 액션의 `setFeedback({ … })` 키가 정확히 일치해야 화면에 그려진다. 한쪽만 바꾸면 조용히 표시가 안 된다. 텍스트는 문자열, pixmap(`albumArt`)은 `{ value }` 형태로 넘긴다.
-- **액션 UUID ↔ 매니페스트 UUID**: `@action({ UUID })`와 [manifest.json](media_controller/com.sonky.media-controller.sdPlugin/manifest.json) Actions[].UUID가 완전히 같아야 이벤트 라우팅이 된다.
-- **Encoder 전용 액션의 타입 좁히기**: `onWillAppear`의 `ev.action`은 `DialAction | KeyAction` 유니온이다. `setFeedback` 호출 전 `"setFeedback" in action`으로 좁힌다.
+- **레이아웃 키 ↔ setFeedback 키 (다이얼 전용)**: [layouts/now-playing.json](media_controller/com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 item `key`(`albumArt`/`title`/`artist`/`album`)와 액션의 `setFeedback({ … })` 키가 정확히 일치해야 화면에 그려진다. 한쪽만 바꾸면 조용히 표시가 안 된다. 텍스트는 문자열, pixmap(`albumArt`)은 `{ value }` 형태로 넘긴다. **키(Keypad)는 레이아웃을 쓰지 않는다** — `setImage`(이미지/`data:` URI)+`setTitle`(문자열)로 직접 그린다.
+- **다이얼 vs 키 surface 분기**: `onWillAppear`의 `ev.action`은 `DialAction | KeyAction` 유니온이다. `isDial()`/`isKey()` 타입가드로 좁힌 뒤 surface 별 렌더 API(`setFeedback` vs `setImage/setTitle`)를 호출한다. Now Playing 액션은 둘 다(`Controllers: ["Encoder","Keypad"]`), Next/Previous는 키 전용(`["Keypad"]`).
+- **액션 UUID ↔ 매니페스트 UUID**: `@action({ UUID })`와 [manifest.json](media_controller/com.sonky.media-controller.sdPlugin/manifest.json) Actions[].UUID가 완전히 같아야 이벤트 라우팅이 된다. 액션 3개(`now-playing`/`next`/`previous`) 모두.
+- **키 아이콘 = 정적 매니페스트 이미지**: Next/Previous 키는 동적 표시가 없어 manifest `Icon`(20/40px)·`States[].Image`(72/144px) 정적 PNG만 쓴다([imgs/actions/next/](media_controller/com.sonky.media-controller.sdPlugin/imgs/actions/next/)·[previous/](media_controller/com.sonky.media-controller.sdPlugin/imgs/actions/previous/), now-playing 디자인 계열로 생성). Now Playing 키의 기본 이미지는 `States[0].Image`(`now-playing/key`)이고, 재생 중이면 `setImage`로 앨범아트가 이를 덮는다. **Now Playing/Next 키는 play/pause 상태 아이콘을 토글하지 않는다**(단일 State, `setState` 미사용) — 다이얼과 동일한 의도된 한계.
 - **빌드 산출물**: `*.sdPlugin/bin/`은 rollup 출력이며 gitignore 대상. 소스는 `src/`만. 매니페스트 `CodePath`는 `bin/plugin.js`를 가리킨다.
 - **Node 런타임**은 Stream Deck 앱이 번들(매니페스트 `Nodejs.Version`)한다. 로컬 Node 버전과 무관하며, 앱이 7.1 미만이면 플러그인이 로드되지 않는다.
 - **vendored 네이티브 의존**: [vendor/mediaremote-adapter/](media_controller/com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/)의 perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)는 **gitignore 대상이 아니며 커밋된다**(self-contained 배포). `darwin.ts`는 `import.meta.url` 기준 `../vendor/...`로 경로를 해석한다 — 번들 레이아웃을 바꾸면 이 경로도 같이 바꿔야 한다. 프레임워크는 ad-hoc 서명이라 복사 시 서명이 유지돼야 로드된다(`codesign --verify`로 확인).
@@ -118,7 +122,9 @@ pwsh scripts/build-smtc-helper.ps1 -SelfContained # 자체 포함(런타임 불�
 
 ### 현재 wired vs Roadmap
 
-**Wired (검증됨, macOS)**: 플러그인 골격, Encoder 액션, 컨트롤 매핑, 터치스트립 stream 캐시 렌더링(dedupe), 플랫폼 분기, `MediaController` 계약, **macOS 곡 정보 + 재생/일시정지/다음/이전 (vendored mediaremote-adapter)**, 브리지 오류 시 "설정 필요"/"재생 없음" graceful degradation.
+**Wired (검증됨, macOS)**: 플러그인 골격, 다이얼(Encoder) 액션, 컨트롤 매핑, 터치스트립 stream 캐시 렌더링(dedupe), 플랫폼 분기, `MediaController` 계약, **macOS 곡 정보 + 재생/일시정지/다음/이전 (vendored mediaremote-adapter)**, 브리지 오류 시 "설정 필요"/"재생 없음" graceful degradation.
+
+**구현됨 · 실기기 미검증 (키 지원)**: Now Playing 액션 키(Keypad) 지원(`setImage`(앨범아트 data URI)+`setTitle`) + Next/Previous 키 전용 액션 + 컨트롤러 1개 공유 주입. 정적 검증 완료(build·`streamdeck validate`·eslint·prettier 통과). **실기기에서 키에 올려 렌더/누름 동작 확인이 남아 있다** — 특히 `setImage(dataUri)`로 키에 앨범아트를 그리는 경로가 처음 실행된다.
 
 **구현됨 · 미검증 (Windows)**: `media/windows.ts` + vendored `smtc-helper`(.NET). 코드/구조는 macOS와 동일 패턴으로 완성. **Windows 머신에서 빌드(`scripts/build-smtc-helper.ps1`)·실행 검증이 남아 있다** — 검증 후 `smtc-helper.exe` 커밋 + "미검증" 표기 제거.
 
