@@ -43,23 +43,23 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 
 ## File Structure
 
-| 파일                                                              | 역할                                                                                   |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `src/plugin.ts`                                                   | 진입점. 컨트롤러 1개 생성·주입, 세 액션 등록, `streamDeck.connect()`                   |
+| 파일                                                              | 역할                                                                                               |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src/plugin.ts`                                                   | 진입점. 컨트롤러 1개 생성·주입, 세 액션 등록, `streamDeck.connect()`                               |
 | `src/actions/now-playing.ts`                                      | 다이얼+키 액션. 폴링 렌더(`#timers`/`#lastSig` dedupe, surface 별 분기) + 회전/누름/터치/키 → 제어 |
-| `src/actions/next.ts`                                             | Next 키 전용 액션. `onKeyDown` → `next()`, 실패 시 `showAlert`                         |
-| `src/actions/previous.ts`                                         | Previous 키 전용 액션. `onKeyDown` → `previous()`, 실패 시 `showAlert`                 |
-| `src/media/types.ts`                                              | `NowPlaying` 타입 + `MediaController` 인터페이스 (컨슈머가 의존하는 계약)              |
-| `src/media/controller.ts`                                         | `createMediaController()` — `process.platform` 분기 (유일한 플랫폼 분기점)             |
-| `src/media/darwin.ts`                                             | macOS 브리지. 영속 `stream` 자식으로 상태 캐시, `send`로 제어, 서킷브레이커·정리       |
-| `src/media/windows.ts`                                            | Windows 브리지. `smtc-helper.exe` 에 shell out (구현, **Windows 미검증**)              |
-| `smtc-helper/Program.cs`, `smtc-helper.csproj`                    | Windows SMTC 헬퍼(.NET) 소스 — `get`/`stream`/`send`, 앨범아트 base64                  |
-| `com.sonky.media-controller.sdPlugin/manifest.json`               | 플러그인/액션 메타. Now Playing(Encoder+Keypad)·Next·Previous(Keypad), layout·States  |
-| `com.sonky.media-controller.sdPlugin/layouts/now-playing.json`    | 터치스트립 커스텀 레이아웃(pixmap+text)                                                |
-| `com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/` | (macOS) vendored perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명) |
-| `com.sonky.media-controller.sdPlugin/vendor/smtc-helper/`         | (Windows) vendored `smtc-helper.exe` — 빌드 산출물(빌드 후 생성)                       |
-| `scripts/build-mediaremote-adapter.sh`                            | (macOS) 어댑터 프레임워크 재현 빌드(clang, cmake 불필요)                               |
-| `scripts/build-smtc-helper.ps1`                                   | (Windows) SMTC 헬퍼 빌드·vendor(.NET 8 SDK 필요)                                       |
+| `src/actions/next.ts`                                             | Next 키 전용 액션. `onKeyDown` → `next()`, 실패 시 `showAlert`                                     |
+| `src/actions/previous.ts`                                         | Previous 키 전용 액션. `onKeyDown` → `previous()`, 실패 시 `showAlert`                             |
+| `src/media/types.ts`                                              | `NowPlaying` 타입 + `MediaController` 인터페이스 (컨슈머가 의존하는 계약)                          |
+| `src/media/controller.ts`                                         | `createMediaController()` — `process.platform` 분기 (유일한 플랫폼 분기점)                         |
+| `src/media/darwin.ts`                                             | macOS 브리지. 영속 `stream` 자식으로 상태 캐시, `send`로 제어, 서킷브레이커·정리                   |
+| `src/media/windows.ts`                                            | Windows 브리지. `smtc-helper.exe` 에 shell out (구현, **Windows 미검증**)                          |
+| `smtc-helper/Program.cs`, `smtc-helper.csproj`                    | Windows SMTC 헬퍼(.NET) 소스 — `get`/`stream`/`send`, 앨범아트 base64                              |
+| `com.sonky.media-controller.sdPlugin/manifest.json`               | 플러그인/액션 메타. Now Playing(Encoder+Keypad)·Next·Previous(Keypad), layout·States               |
+| `com.sonky.media-controller.sdPlugin/layouts/now-playing.json`    | 터치스트립 커스텀 레이아웃(pixmap+text)                                                            |
+| `com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/` | (macOS) vendored perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)             |
+| `com.sonky.media-controller.sdPlugin/vendor/smtc-helper/`         | (Windows) vendored `smtc-helper.exe` — 빌드 산출물(빌드 후 생성)                                   |
+| `scripts/build-mediaremote-adapter.sh`                            | (macOS) 어댑터 프레임워크 재현 빌드(clang, cmake 불필요)                                           |
+| `scripts/build-smtc-helper.ps1`                                   | (Windows) SMTC 헬퍼 빌드·vendor(.NET 8 SDK 필요)                                                   |
 
 ## Dependencies
 
@@ -73,17 +73,17 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 
 ## Glossary
 
-| 용어                | 정의                                                                 |
-| ------------------- | -------------------------------------------------------------------- |
-| Encoder / 다이얼    | Stream Deck + 의 회전·누름 가능한 노브. 터치스트립과 연동            |
+| 용어                | 정의                                                                             |
+| ------------------- | -------------------------------------------------------------------------------- |
+| Encoder / 다이얼    | Stream Deck + 의 회전·누름 가능한 노브. 터치스트립과 연동                        |
 | Keypad / 키         | 일반 누름 버튼. 이미지(`setImage`) + 타이틀(`setTitle`)로 렌더, 누름=`onKeyDown` |
-| 터치스트립          | 다이얼 위의 LCD. `setFeedback`/`layout`으로 렌더                     |
-| NowPlaying          | 정규화된 재생 상태(title/artist/album/isPlaying/artworkDataUri)      |
-| MediaController     | 플랫폼 무관 제어 계약(`getNowPlaying`/`playPause`/`next`/`previous`) |
-| MRACommand          | (macOS) MediaRemote 제어 명령 ID (2=재생토글, 4=다음, 5=이전)        |
-| mediaremote-adapter | macOS 15.4+ MediaRemote 차단을 우회하는 perl+프레임워크 브리지       |
-| SMTC                | Windows System Media Transport Controls                              |
-| smtc-helper         | SMTC 를 호출해 곡 정보·제어를 중계하는 vendored .NET exe             |
+| 터치스트립          | 다이얼 위의 LCD. `setFeedback`/`layout`으로 렌더                                 |
+| NowPlaying          | 정규화된 재생 상태(title/artist/album/isPlaying/artworkDataUri)                  |
+| MediaController     | 플랫폼 무관 제어 계약(`getNowPlaying`/`playPause`/`next`/`previous`)             |
+| MRACommand          | (macOS) MediaRemote 제어 명령 ID (2=재생토글, 4=다음, 5=이전)                    |
+| mediaremote-adapter | macOS 15.4+ MediaRemote 차단을 우회하는 perl+프레임워크 브리지                   |
+| SMTC                | Windows System Media Transport Controls                                          |
+| smtc-helper         | SMTC 를 호출해 곡 정보·제어를 중계하는 vendored .NET exe                         |
 
 ## Data Flow
 

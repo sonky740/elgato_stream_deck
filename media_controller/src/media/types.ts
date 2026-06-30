@@ -3,12 +3,12 @@
  * 플랫폼별 브리지(darwin / windows)가 이 모양으로 변환해 반환한다.
  */
 export type NowPlaying = {
-	title: string;
-	artist: string;
-	album: string;
-	isPlaying: boolean;
-	/** 앨범 아트. `data:image/...;base64,` data URI 또는 플러그인 내 이미지 경로. */
-	artworkDataUri?: string;
+  title: string;
+  artist: string;
+  album: string;
+  isPlaying: boolean;
+  /** 앨범 아트. `data:image/...;base64,` data URI 또는 플러그인 내 이미지 경로. */
+  artworkDataUri?: string;
 };
 
 /**
@@ -17,9 +17,9 @@ export type NowPlaying = {
  * "넓게는 media" — YouTube Music 외 다른 플레이어로 확장해도 컨슈머는 그대로다.
  */
 export interface MediaController {
-	/** 재생 정보가 없으면 `null`. */
-	getNowPlaying(): Promise<NowPlaying | null>;
-	playPause(): Promise<void>;
-	next(): Promise<void>;
-	previous(): Promise<void>;
+  /** 재생 정보가 없으면 `null`. */
+  getNowPlaying(): Promise<NowPlaying | null>;
+  playPause(): Promise<void>;
+  next(): Promise<void>;
+  previous(): Promise<void>;
 }
