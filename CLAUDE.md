@@ -122,9 +122,7 @@ pwsh scripts/build-smtc-helper.ps1 -SelfContained # 자체 포함(런타임 불�
 
 ### 현재 wired vs Roadmap
 
-**Wired (검증됨, macOS)**: 플러그인 골격, 다이얼(Encoder) 액션, 컨트롤 매핑, 터치스트립 stream 캐시 렌더링(dedupe), 플랫폼 분기, `MediaController` 계약, **macOS 곡 정보 + 재생/일시정지/다음/이전 (vendored mediaremote-adapter)**, 브리지 오류 시 "설정 필요"/"재생 없음" graceful degradation.
-
-**구현됨 · 실기기 미검증 (키 지원)**: Now Playing 액션 키(Keypad) 지원(`setImage`(앨범아트 data URI)+`setTitle`) + Next/Previous 키 전용 액션 + 컨트롤러 1개 공유 주입. 정적 검증 완료(build·`streamdeck validate`·eslint·prettier 통과). **실기기에서 키에 올려 렌더/누름 동작 확인이 남아 있다** — 특히 `setImage(dataUri)`로 키에 앨범아트를 그리는 경로가 처음 실행된다.
+**Wired (검증됨, macOS)**: 플러그인 골격, 다이얼(Encoder) 액션, **키(Keypad) 지원 — Now Playing 키(`setImage` 앨범아트 data URI + `setTitle`) + Next/Previous 키 전용 액션 + 컨트롤러 1개 공유 주입**, 컨트롤 매핑, 터치스트립/키 stream 캐시 렌더링(dedupe), 플랫폼 분기, `MediaController` 계약, **macOS 곡 정보 + 재생/일시정지/다음/이전 (vendored mediaremote-adapter)**, 브리지 오류 시 "설정 필요"/"재생 없음" graceful degradation. (macOS 실기기 검증 완료. Windows는 전체 미검증 — 아래.)
 
 **구현됨 · 미검증 (Windows)**: `media/windows.ts` + vendored `smtc-helper`(.NET). 코드/구조는 macOS와 동일 패턴으로 완성. **Windows 머신에서 빌드(`scripts/build-smtc-helper.ps1`)·실행 검증이 남아 있다** — 검증 후 `smtc-helper.exe` 커밋 + "미검증" 표기 제거.
 
