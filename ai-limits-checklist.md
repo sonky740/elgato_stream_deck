@@ -164,7 +164,7 @@
 - [x] `reset_at`(epoch 초) 사용, 드리프트하는 `reset_after_seconds` 아님 — 2026년이 나오는지 단정
 - [x] ~~`credits.balance` 가 문자열임을 처리~~ → **해당 없음.** `credits`·`spend_control` 을 읽지 않는다(게이지에 필요한 건 `rate_limit` 뿐). 읽지 않는 필드의 파싱 함정은 만들 이유가 없다
 - [x] JWT `exp` 로컬 디코드로 만료 판정 — 만료 시 요청하지 않는지 단정
-- [ ] 5HR 공란 컴포지션 실기기 확인 — Codex 액션을 다이얼에 올려야 한다. ⚠ 이 페이즈 완료 후에도 두 숫자가 다 뜨는 건 Claude 뿐(라이브 재확인: `primary` 604800s / `secondary` null)
+- [x] 5HR 공란 표시 — **양쪽 다 검증됨.** 컴포지션은 `codex-5h-empty` 케이스를 실제 픽셀 크기로 확인했고(라벨·링 겹침을 그때 잡았다), 라이브 경로는 1회 요청으로 `primary` 604800s / `secondary` null 을 확인했다. `parseUsage` 가 그 픽스처에서 `fiveHour: null` 을 내는지 단정하는 테스트도 있다. 남은 건 액션을 다이얼에 올리는 것뿐이고 렌더 경로는 Claude 와 동일하다
 - [x] Codex 액션 아이콘 애셋 — 플레이스홀더 6장(accent `#10a37f`, 렌더러의 codex 색과 동일)
 
 ## Phase 4 — Keypad (§6)

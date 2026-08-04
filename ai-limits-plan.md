@@ -287,17 +287,21 @@ Codex 는 대응물이 없어 직접 폴링만이다.
 ## 5. 아키텍처
 
 ```
-src/plugin.ts                        서비스 2개 생성 → 액션 2개에 주입 → connect() → 전역설정 로드 → 폴링 시작
-  ├─ actions/claude-limits.ts        Encoder + Keypad
-  ├─ actions/codex-limits.ts         Encoder + Keypad
-  │     └─ (공통 베이스: 타이머/구독/dedupe/렌더 배관)
-  ├─ usage/service.ts                프로바이더당 1개. 네트워크 타이머 + last-good 캐시 + 서킷브레이커 + 가시성 refcount
-  ├─ usage/claude.ts                 LimitsSource 구현 — 2단 읽기(statusline 캐시 → 직접 GET, §4.3)
-  ├─ usage/claude-statusline.ts      tier 1: 캐시 JSON 읽기 + epoch 초/used_percentage 정규화
-  ├─ usage/codex.ts                  LimitsSource 구현 (auth.json + GET + UA/content-type 가드 + PII 제거)
-  ├─ usage/credentials.ts            플랫폼 분기 1지점 (darwin: keychain / win32: 파일)
-  ├─ usage/types.ts                  LimitsSource 인터페이스 + UsageViewModel (컨슈머가 의존하는 유일한 계약)
-  └─ render/gauge.ts                 순수 함수: (vm, opts) => SVG string
+src/plugin.ts                        서비스 2개 생성 → 액션 2개에 주입 → connect() → 전역설정 적용
+  ├─ actions/gauge-action.ts         공통 배관: 구독 · 렌더 · dedupe · 게이트1 프로브
+  │    ├─ actions/claude-usage.ts    @action UUID 만
+  │    └─ actions/codex-usage.ts     @action UUID 만
+  ├─ render/gauge.ts                 순수 함수 (vm, opts, nowMs) => SVG 문자열
+  ├─ render/probe.ts                 SVG 래스터라이저 진단 프로브(마커 파일로 토글)
+  ├─ settings.ts                     인스턴스/전역 설정 계약 + 기본값 · clamp
+  ├─ usage/service.ts                프로바이더당 1개 — 타이머 · last-good · 백오프 · 서킷 · refcount
+  ├─ usage/claude.ts                 2단 읽기(statusline 캐시 → 직접 GET)
+  │    └─ usage/claude-statusline.ts tier 1 캐시 리더
+  ├─ usage/codex.ts                  wham/usage. 창 길이가 응답에 실려 온다
+  ├─ usage/http.ts                   JSON GET + 상태코드→state + Cloudflare HTML 가드
+  ├─ usage/credentials.ts            플랫폼 분기 1지점 (키체인 / 파일)
+  ├─ usage/fake.ts                   실패 상태 11종 온디바이스 재현 (C_AI_USAGE_FAKE)
+  └─ usage/types.ts                  LimitsSource · UsageViewModel · assignSlots (유일한 계약)
 ```
 
 ### media_controller 의 폴링 관용구를 복사하면 안 된다
@@ -623,6 +627,9 @@ stale 이 명시적 에러로 승격되는 나이 임계값도 정한다(권고:
 ---
 
 ## 12. 페이즈
+
+> **현재 상태는 [ai-limits-checklist.md](ai-limits-checklist.md) 가 SSOT 다.** 아래 표는 원래 계획이고,
+> Phase 0~5 는 전부 구현·커밋됐다(2026-08-04). 남은 것은 기존 플러그인 2개 삭제와 실제 아이콘 교체다.
 
 자연스러워 보이는 "소스 레이어부터" 순서는 **거꾸로**다 — 설계를 죽일 수 있는 두 미지를 마지막에 둔다.
 
