@@ -9,3 +9,6 @@ package-lock.json
 
 # 배포 산출물
 **/*.streamDeckPlugin
+
+# 렌더 프리뷰(생성물)
+**/preview/

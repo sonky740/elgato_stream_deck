@@ -108,9 +108,11 @@ describe('로그 유출 방지', () => {
 
   it('Codex 자격증명 로더가 refresh_token·id_token 을 반환 객체에 담지 않는다', async () => {
     const { readCodexCredential } = await import('./credentials');
-    const home = path.join(FIXTURES, '..', 'preview', 'fake-codex-home');
-    const { mkdirSync, writeFileSync } = await import('node:fs');
-    mkdirSync(home, { recursive: true });
+    // 저장소 안(preview/ 등)에 쓰지 않는다 — 테스트 산출물이 생성물 디렉토리에 섞이면
+    // 포맷 검사 대상이 되고 커밋 후보로도 올라온다.
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const os = await import('node:os');
+    const home = mkdtempSync(path.join(os.tmpdir(), 'c-ai-usage-redact-'));
     writeFileSync(
       path.join(home, 'auth.json'),
       JSON.stringify({
