@@ -59,7 +59,7 @@
 - [x] `streamdeck validate com.sonky.c-ai-usage.sdPlugin` → ✔
 - [x] `streamdeck link com.sonky.c-ai-usage.sdPlugin` (1회) — `streamdeck dev` 는 media_controller 로 이미 활성
 - [ ] `npm run watch -w c-ai-usage` 로 실기기 반영 확인
-- [ ] Phase 0 커밋
+- [x] Phase 0·1 커밋 — 브랜치 `feat/c-ai-usage` 에 4개 커밋(계획 문서 / 루트 툴링 / 워크스페이스 / CLAUDE.md). main 직접 커밋 대신 브랜치를 썼다
 
 ### 기존 플러그인 정리 (§7 게이트 3)
 
