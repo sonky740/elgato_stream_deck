@@ -7,3 +7,6 @@ node_modules/
 
 # 렌더 프리뷰(생성물)
 preview/
+
+# 게이트 1 프로브 토글(로컬 전용)
+*.sdPlugin/.svg-probe

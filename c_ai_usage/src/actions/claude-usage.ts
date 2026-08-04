@@ -8,6 +8,7 @@ import streamDeck, {
 } from '@elgato/streamdeck';
 
 import { renderGauge, type RenderOptions } from '../render/gauge';
+import { probeEnabled, probeStages } from '../render/probe';
 import type { UsageService } from '../usage/service';
 import type { UsageViewModel } from '../usage/types';
 
@@ -48,6 +49,10 @@ export class ClaudeUsageAction extends SingletonAction {
     }
     // disappear 없이 onWillAppear 가 다시 올 수 있다(프로필 전환/기기 깨어남). 기존 구독을 끊어 누수를 막는다.
     this.#detach(action.id);
+    if (probeEnabled()) {
+      this.#detachers.set(action.id, startProbe(action));
+      return;
+    }
     this.#detachers.set(
       action.id,
       this.#service.subscribe((vm) => void this.#render(action, vm)),
@@ -86,6 +91,30 @@ export class ClaudeUsageAction extends SingletonAction {
       streamDeck.logger.warn('게이지 렌더 실패', err);
     }
   }
+}
+
+/**
+ * 게이트 1 프로브를 3초 간격으로 순환시킨다. 각 단계에서 무엇을 보냈는지 로그에 남으므로
+ * 화면에 무엇이 나왔는지와 대조하면 어느 인코딩·어느 SVG 기능이 되는지 판정된다.
+ */
+function startProbe(action: GaugeAction): () => void {
+  const stages = probeStages();
+  let i = 0;
+  const send = (): void => {
+    const stage = stages[i % stages.length];
+    i += 1;
+    if (stage === undefined) {
+      return;
+    }
+    streamDeck.logger.info(`[게이트1] ${i}/${stages.length} ${stage.name} — ${stage.describe}`);
+    const done = action.isDial()
+      ? action.setFeedback({ [CANVAS_KEY]: stage.payload })
+      : action.setImage(stage.payload);
+    done.catch((err: unknown) => streamDeck.logger.warn(`[게이트1] ${stage.name} 전송 실패`, err));
+  };
+  send();
+  const timer = setInterval(send, 3000);
+  return () => clearInterval(timer);
 }
 
 /**
