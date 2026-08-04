@@ -60,6 +60,13 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
   };
 
   function emit(next: UsageViewModel): void {
+    // 상태가 바뀔 때만 기록한다 — 매 폴링마다 찍으면 성공 경로가 로그를 가득 채운다.
+    // 수치는 PII 가 아니라 남겨도 되지만, 응답 본문은 어떤 경우에도 기록하지 않는다(§4.2).
+    if (next.state !== vm.state) {
+      streamDeck.logger.info(
+        `${source.provider} usage: ${vm.state} → ${next.state}${summarize(next)}`,
+      );
+    }
     vm = next;
     for (const listener of listeners) {
       listener(vm);
@@ -103,7 +110,6 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
         return;
       }
 
-      failures += 1;
       const canShowLastGood =
         SOFT_FAILURES.has(result.state) &&
         lastGood !== null &&
@@ -123,6 +129,7 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
               fetchedAtMs: null,
             },
       );
+      failures += 1;
       streamDeck.logger.warn(`${source.provider} usage: ${result.state} (연속 ${failures}회)`);
       schedule(backoffMs());
     } catch (err) {
@@ -153,4 +160,14 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
       };
     },
   };
+}
+
+/** 로그용 한 줄 요약. 창이 비면 `—` 로 표시해 0% 와 구분한다. */
+function summarize(vm: UsageViewModel): string {
+  if (vm.state !== 'ok' && vm.state !== 'stale') {
+    return '';
+  }
+  const cell = (w: UsageViewModel['slots']['week']): string =>
+    w === null || w.utilization === null ? '—' : `${Math.floor(w.utilization)}%`;
+  return ` (5H ${cell(vm.slots.fiveHour)} / WK ${cell(vm.slots.week)})`;
 }

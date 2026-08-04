@@ -34,15 +34,15 @@
 ### 게이트
 
 - [x] **게이트 2** 폴링 간격 + UA — 15분 유휴 → 60s 간격 6회 × 2블록. **A(CLI UA) 6/6 · B(UA 없음) 6/6, 429 0건.** 측정창 `01:38:45Z~02:03:53Z`
-- [ ] **게이트 1** SVG 래스터라이저 실기기 확인 (§7 게이트 1) — **준비 완료, 사용자 조작 대기**
-  - [x] 프로브 구현 — `src/render/probe.ts`. 별도 버리는 액션 대신 Claude 액션에 마커 파일로 얹었다
-  - [x] 테스트 SVG — arc path(`A` + `stroke-linecap`) · 중앙 정렬 `<text>` · 한글 글리프. `stroke-dasharray` 는 게이지가 안 쓰므로 넣지 않았다
-  - [x] 형식 4단계 3초 간격 순환: raw `<svg>` / base64 data URI / `charset=utf8` / PNG 경로(대조군)
-  - [x] 프로브 활성화 + 플러그인 재시작 완료 (마커 `.svg-probe` 생성)
-  - [ ] **액션을 다이얼에 올려 4단계 관찰** ← 플러그인 프로세스는 액션이 배치돼야 시작된다
-  - [ ] 관찰 후 마커 삭제 + 재시작 — `rm com.sonky.c-ai-usage.sdPlugin/.svg-probe && streamdeck restart com.sonky.c-ai-usage`. 안 지우면 게이지 대신 프로브가 계속 돈다
-  - [ ] ~~키에서 `setImage` 로 반복~~ → **지금은 불가.** 매니페스트가 `Controllers: ["Encoder"]` 뿐이라 키에 올릴 수 없다. Phase 4(Keypad)로 이월하거나 임시로 매니페스트를 고쳐야 한다
-  - [ ] 실패 시 → 도넛 포기하고 네이티브 `bar`/`gbar` 로 전환할지 결정 (요구사항 4 축소)
+- [x] **게이트 1** SVG 래스터라이저 실기기 확인 — **통과** (§7 게이트 1)
+  - [x] 프로브 구현 — `src/render/probe.ts`. 각 SVG 가 자기 단계 번호를 ASCII 로 표시
+  - [x] arc path(`A` + `stroke-linecap`) ✅ · 중앙 정렬 `<text>` ✅ · **한글 글리프 ✅**
+  - [x] `charset=utf8` data URI 시각 확인. 96회 전송 실패 0건
+  - [x] 도넛 설계 유지 확정 — 네이티브 `bar`/`gbar` 폴백 불필요, `MESSAGE` 표 한글 유지
+  - [x] 프로브 해제 + 실제 게이지 end-to-end — 로그 `claude usage: loading → ok (5H 69% / WK 30%)`
+  - [ ] **raw SVG 다이얼 표시 최종 확인** — 출하 경로가 raw 인데 시각 확인된 건 `charset=utf8` 이다. 비어 보이면 `encodeSvg()` 한 줄 교체
+  - [ ] ~~키에서 `setImage` 로 반복~~ → 매니페스트가 `Controllers: ["Encoder"]` 뿐이라 지금 불가. Phase 4 로 이월
+- [x] `npm run watch -w c-ai-usage` 대신 `streamdeck restart` 로 실기기 반영 확인 (프로브 4회·게이지 1회)
 
 ### 워크스페이스 (§10)
 
@@ -61,7 +61,6 @@
 - [x] `npm run build` (워크스페이스 + 루트 전체) · `npm run lint` · `npm run format:check`
 - [x] `streamdeck validate com.sonky.c-ai-usage.sdPlugin` → ✔
 - [x] `streamdeck link com.sonky.c-ai-usage.sdPlugin` (1회) — `streamdeck dev` 는 media_controller 로 이미 활성
-- [ ] `npm run watch -w c-ai-usage` 로 실기기 반영 확인
 - [x] Phase 0·1 커밋 — 브랜치 `feat/c-ai-usage` 에 4개 커밋(계획 문서 / 루트 툴링 / 워크스페이스 / CLAUDE.md). main 직접 커밋 대신 브랜치를 썼다
 
 ### 기존 플러그인 정리 (§7 게이트 3)
