@@ -23,6 +23,15 @@ type GaugeAction = DialAction<GaugeSettings> | KeyAction<GaugeSettings>;
 const CANVAS_KEY = 'canvas';
 
 /**
+ * 회전 스로틀 창. 한 번 휙 돌리면 `dialRotate` 가 연달아 도착해 차트가 여러 칸 튄다.
+ *
+ * debounce 가 아니라 **leading-edge throttle** 이다 — 첫 이벤트를 즉시 반영하고 창 안의
+ * 나머지를 버린다. debounce 면 회전이 멎을 때까지 화면이 가만히 있어, 이 매핑을 순환으로
+ * 되돌린 이유였던 "돌려도 반응이 없다" 가 되살아난다.
+ */
+export const ROTATE_THROTTLE_MS = 400;
+
+/**
  * 사용량 게이지 액션의 공통 배관. 프로바이더별 서브클래스는 `@action({ UUID })` 만 붙인다 —
  * 프로바이더 차이는 전부 주입된 {@link UsageService} 뒤에 있다.
  *
@@ -42,6 +51,8 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
    * appear 시점 스냅샷에 고정되어, 차트를 바꿔도 다음 폴링 렌더가 옛 설정으로 되돌린다.
    */
   readonly #settings = new Map<string, GaugeSettings>();
+  /** 인스턴스별 마지막으로 **반영된** 회전 시각. 버린 이벤트로는 갱신하지 않는다. */
+  readonly #lastRotateMs = new Map<string, number>();
 
   constructor(service: UsageService) {
     super();
@@ -72,6 +83,7 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
     this.#lastSent.delete(ev.action.id);
     this.#lastVm.delete(ev.action.id);
     this.#settings.delete(ev.action.id);
+    this.#lastRotateMs.delete(ev.action.id);
   }
 
   /**
@@ -99,11 +111,18 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
    * 다이얼 회전 → 회전 방향으로 차트 한 칸. 목록 양끝에서 감싸므로 같은 방향으로 계속 돌려도
    * 계속 바뀐다 — 조작마다 화면이 반응하는 것이 다이얼의 기대 동작이다.
    *
-   * 스텝을 `ticks` 크기가 아니라 방향(±1)으로 잡는다. 빠르게 튕기면 한 이벤트에 `ticks` 가
-   * 여러 개 실려 오는데, 차트가 2종이라 크기만큼 이동하면 짝수 입력이 제자리가 되어 조작에
-   * 반응이 없는 것처럼 보인다.
+   * 한 번 휙 돌리면 이벤트가 연달아 오므로 {@link ROTATE_THROTTLE_MS} 로 비율을 제한한다.
+   * 스텝도 `ticks` 크기가 아니라 방향(±1)이다 — 한 이벤트에 `ticks` 가 여러 개 실려 오는데
+   * 차트가 2종이라 크기만큼 이동하면 짝수 입력이 제자리가 되어 반응이 없는 것처럼 보인다.
    */
   override async onDialRotate(ev: DialRotateEvent<GaugeSettings>): Promise<void> {
+    const now = Date.now();
+    const last = this.#lastRotateMs.get(ev.action.id);
+    // 버린 이벤트로 시각을 갱신하지 않는다 — 갱신하면 계속 돌리는 동안 창이 밀려 영구히 막힌다.
+    if (last !== undefined && now - last < ROTATE_THROTTLE_MS) {
+      return;
+    }
+    this.#lastRotateMs.set(ev.action.id, now);
     await this.#cycleChart(ev.action, ev.payload.settings, Math.sign(ev.payload.ticks));
   }
 

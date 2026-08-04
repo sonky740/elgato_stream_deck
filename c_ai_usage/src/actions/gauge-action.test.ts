@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GaugeActionBase } from './gauge-action';
+import { GaugeActionBase, ROTATE_THROTTLE_MS } from './gauge-action';
 import type { ChartType } from '../render/gauge';
 import type { GaugeSettings } from '../settings';
 import type { UsageService } from '../usage/service';
@@ -84,6 +84,16 @@ function rotation(action: unknown, settings: GaugeSettings, ticks: number): any 
 }
 
 describe('GaugeActionBase 인터랙션', () => {
+  // 회전 스로틀이 Date.now() 를 보므로 시계를 고정한다. 실시계로는 연속 회전이 전부
+  // 스로틀 창에 들어가 테스트가 조작 횟수를 표현할 수 없다.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('키 누름이 차트를 순환시킨다', async () => {
     const { service, push } = fakeService();
     const { action, sent } = fakeAction('key');
@@ -135,15 +145,50 @@ describe('GaugeActionBase 인터랙션', () => {
 
     // Stream Deck 은 이벤트마다 현재 설정을 실어 보내므로 마지막 저장값을 다시 넘긴다.
     const current = (): GaugeSettings => saved.at(-1) ?? {};
-    await subject.onDialRotate(rotation(action, current(), 1));
+    // 스로틀 창을 넘겨가며 돌린다 — 사용자가 따로따로 돌린 상황이다.
+    const turn = async (ticks: number): Promise<void> => {
+      vi.advanceTimersByTime(ROTATE_THROTTLE_MS);
+      await subject.onDialRotate(rotation(action, current(), ticks));
+    };
+
+    await turn(1);
     expect(lastChart(sent)).toBe('bar');
-    await subject.onDialRotate(rotation(action, current(), 1));
+    await turn(1);
     expect(lastChart(sent)).toBe('donut');
-    await subject.onDialRotate(rotation(action, current(), 1));
+    await turn(1);
     expect(lastChart(sent)).toBe('bar');
 
     // 반대로 돌려도 한 칸씩 움직인다.
-    await subject.onDialRotate(rotation(action, current(), -1));
+    await turn(-1);
+    expect(lastChart(sent)).toBe('donut');
+  });
+
+  /**
+   * 휙 돌리면 `dialRotate` 가 연달아 도착해 차트가 여러 칸 튄다. leading-edge throttle 이라
+   * 첫 이벤트는 즉시 반영되고(반응이 느려지지 않는다) 창 안의 나머지만 버려진다.
+   */
+  it('휙 돌려 이벤트가 연달아 와도 스로틀 창 안에서는 한 칸만 움직인다', async () => {
+    const { service, push } = fakeService();
+    const { action, sent, saved } = fakeAction('dial');
+    const subject = new TestAction(service);
+
+    subject.onWillAppear(appear(action, {}));
+    push(vm());
+
+    await subject.onDialRotate(rotation(action, {}, 1));
+    expect(lastChart(sent)).toBe('bar');
+
+    // 같은 제스처의 후속 이벤트 — 창 안이므로 버린다.
+    vi.advanceTimersByTime(ROTATE_THROTTLE_MS - 1);
+    await subject.onDialRotate(rotation(action, { chart: 'bar' }, 1));
+    await subject.onDialRotate(rotation(action, { chart: 'bar' }, 1));
+    expect(saved).toHaveLength(1);
+    expect(lastChart(sent)).toBe('bar');
+
+    // 창을 넘기면 다시 받는다. 버린 이벤트가 창을 밀지 않기 때문이다 —
+    // 밀면 계속 돌리는 동안 영구히 막힌다.
+    vi.advanceTimersByTime(1);
+    await subject.onDialRotate(rotation(action, { chart: 'bar' }, 1));
     expect(lastChart(sent)).toBe('donut');
   });
 
