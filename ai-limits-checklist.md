@@ -25,7 +25,7 @@
 - [x] v1 범위 → Claude · 다이얼 · 도넛 · `used`, PI 없음 (§12 Phase 1)
 - [x] 기본값 → `basis: 'used'`, `chart: 'donut'`
 - [x] 워크스페이스 / UUID → `c_ai_usage/` · `com.sonky.c-ai-usage`
-- [ ] 약관 확인 — Team 좌석에 Consumer Terms §3 이 적용되는지. 판정이 바뀌면 go 결정 재검토 (§7 게이트 4)
+- [x] 약관 확인 — **Team 좌석은 Commercial Terms 적용**(Claude Code legal 페이지가 명시). Consumer Terms §3 의 봇·스크립트 금지는 이 계정에 **적용되지 않는다** → 초안의 "DECISIVE" 판정은 틀렸다. Commercial Terms 엔 해당 조항이 없다(§7 게이트 4)
 
 ---
 

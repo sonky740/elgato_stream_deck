@@ -490,15 +490,32 @@ cp -R "$P/kr.co.postgresql.ai-limits.sdPlugin/bin" ~/Desktop/ai-limits-reference
 cp -R "$P/com.statuscheck.codex-usage.sdPlugin/bin" ~/Desktop/ai-limits-reference/codex-usage-bin
 ```
 
-### 게이트 4: ToS go/no-go — 사용자 결정
+### 게이트 4: ToS — ✅ 확인 완료 2026-08-04
 
-- Anthropic **Consumer Terms §3**: Anthropic API Key 를 통하지 않고 "automated or non-human means" 로 Services 에 접근하는 것을 금지하고, Services 로부터의 scraping/harvesting 을 금지한다. 구독 OAuth 토큰으로 `/api/oauth/usage` 를 폴링하는 Stream Deck 플러그인은 이 문구 안에 있다.
-- Claude Code legal 페이지: OAuth 는 구독 구매자가 "ordinary use of Claude Code and other native Anthropic applications" 를 하는 데 **"intended exclusively"** 이며, 서드파티가 Free/Pro/Max 자격증명으로 **타인의 요청을 라우팅**하는 것은 허용하지 않고, **사전 통보 없이** 조치할 수 있다고 한다.
-- ⚠ 널리 인용되는 "Agent SDK 포함 다른 제품/도구/서비스에서 OAuth 토큰 사용은 ToS 위반" 문장은 언론 인용(2026-02-19~20)이고 내가 가져온 legal 페이지 본문에 **verbatim 으로 없다**. 보도된 정책 의도로 취급한다.
-- ⚠ Claude Code usage-tracker Mac 앱 개발자가 밴됐다는 2차 보고, 2026-01 부터 서드파티 OAuth 차단이 OpenClaw/OpenCode/Roo Code/Goose 에 적용됐다는 보고가 있다. `/api/oauth/usage` 관련 GitHub 이슈에 Anthropic 직원이 답한 기록은 없다.
-- ⚠ **어느 약관이 적용되는지 확정되지 않았다.** 이 계정의 credential 은 `subscriptionType: "team"`, `rateLimitTier: "default_claude_max_5x"`, `organizationUuid` 를 갖고 usage 응답에 `member_dashboard_available` 이 있다. Anthropic 은 Consumer Terms 와 Commercial Terms 를 따로 낸다. Team 좌석에 §3 이 그대로 적용되는지 먼저 확인해야 한다.
+**정정: 이 계획의 초안이 틀렸다.** 초안은 Consumer Terms §3("automated or non-human means" 금지)을 "DECISIVE" 라고 적었는데, **그 문서는 이 계정을 규율하지 않는다.**
 
-리스크는 비대칭이다 — 빈 다이얼 vs 구독 정지. §4.3 의 statusline 경로가 유일하게 이 축을 회피한다.
+1차 출처 확인 결과:
+
+| 문서                                                                             | 적용 범위 (verbatim)                                                                                                                |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [Consumer Terms](https://www.anthropic.com/legal/consumer-terms)                 | "Claude.ai, Claude Pro, and other products and services that we may offer for **individuals**" — Team·Enterprise·API 는 명시적 제외 |
+| [Commercial Terms](https://www.anthropic.com/legal/commercial-terms)             | "Anthropic API keys and any other Anthropic offerings that references these Terms"                                                  |
+| [Claude Code legal 페이지](https://code.claude.com/docs/en/legal-and-compliance) | "**Commercial Terms** - for **Team**, Enterprise, and Claude API users" / "**Consumer Terms** - for Free, Pro, and Max users"       |
+
+이 계정의 credential 은 `subscriptionType: "team"` + `organizationUuid` 이고 usage 응답에 `member_dashboard_available` 이 있다 → **Commercial Terms 가 적용된다.**
+
+따라서:
+
+- **Consumer Terms §3 의 봇·스크립트 금지 조항은 이 계정에 적용되지 않는다.** 초안이 결정적이라고 본 근거가 사라졌다.
+- Commercial Terms 에는 봇·스크립트·스크레이핑 조항이 **없다.** 제한은 D.4 뿐이다 — "access the Services to build a competing product or service, including to train competing AI models or resell the Services" 와 "reverse engineer or duplicate the Services". 자기 사용량 숫자를 읽는 것은 둘 중 어느 것도 아니다.
+- Claude Code legal 페이지의 서드파티 조항은 "**on behalf of their users**" 를 대상으로 하고, 그 문장이 열거하는 것은 "Free, Pro, or Max plan credentials" 다 — 개인용 플러그인에도, Team 좌석에도 해당하지 않는다.
+
+**남는 잔여 리스크 (여전히 0 이 아니다)**:
+
+- 같은 페이지가 OAuth 를 "intended exclusively for purchasers of Claude Free, Pro, Max, **Team**, and Enterprise subscription plans and is designed to support ordinary use of Claude Code and **other native Anthropic applications**" 라고 한다. Stream Deck 플러그인은 native Anthropic application 이 아니다 — 이게 남는 유일한 실질 긴장이다.
+- "Anthropic reserves the right to take measures to enforce these restrictions and may do so **without prior notice**."
+- ⚠ Claude Code usage-tracker Mac 앱 개발자가 밴됐다는 2차 보고가 있다(1차 확인 불가). 널리 인용되는 "Agent SDK 포함 다른 제품에서 OAuth 사용은 ToS 위반" 문장은 언론 인용이고 legal 페이지 본문에 verbatim 으로 **없다**.
+- §4.3 의 statusline tier 1 은 이 긴장까지 회피한다 — 요청을 **Claude Code 자신**이 하고(= ordinary use of Claude Code), 플러그인은 그 결과 파일만 읽는다.
 
 **사용자 결정 2026-08-04: go.** 기존 플러그인 2개를 삭제하고 직접 만든 것으로 대체한다. 따라서 아래 완화 조건이 **설계 제약으로 확정**된다.
 
@@ -506,7 +523,7 @@ cp -R "$P/com.statuscheck.codex-usage.sdPlugin/bin" ~/Desktop/ai-limits-referenc
 - 공격적으로 캐시하고, 보이는 인스턴스가 0이면 폴링하지 않는다(가시성 refcount, §5).
 - 배포하지 않는다 — 개인·로컬 전용. Marketplace 공개는 별개 결정이며 §7 의 "타인의 요청 라우팅" 조항에 다시 걸린다.
 - 서킷브레이커 없는 구현을 절대 출하하지 않는다 — §0 이 그 결과다.
-- ⚠ 어느 약관이 적용되는지(Consumer vs Commercial, `subscriptionType: "team"`)는 여전히 미확인. 확인 후 판정이 바뀌면 이 결정을 재검토한다.
+- 약관 확인 완료(위) — Commercial Terms 적용이고 봇·스크립트 금지 조항이 없다. 판정이 완화됐으므로 go 결정을 되돌릴 이유는 없다. 다만 "native Anthropic application 이 아니다" 는 긴장은 남으므로 위 완화 조건을 유지한다.
 
 ---
 
