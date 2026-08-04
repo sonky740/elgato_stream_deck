@@ -4,7 +4,7 @@
 
 Claude 구독의 **5시간 창과 주간 창 사용량을 동시에** 다이얼·키에 게이지로 표시한다. 수치는 계정 범위·서버 계산 값만 쓴다 — 여러 기기에서 AI 를 쓰기 때문에 한 기기의 로컬 사용량 로그로는 합산이 성립하지 않는다.
 
-Codex 도 포함한다 — 단 OpenAI 가 2026-07-13 이후 주간 창만 반환하므로 **Codex 의 5HR 슬롯은 공란이 정상**이다. 근거·실측 계약·페이즈 계획은 [../ai-limits-plan.md](../ai-limits-plan.md), 실행 상태는 [../ai-limits-checklist.md](../ai-limits-checklist.md).
+Codex 도 포함한다 — 단 OpenAI 가 2026-07-13 이후 주간 창만 반환하므로 **Codex 의 5HR 슬롯은 공란이 정상**이다.
 
 ## Features
 
@@ -80,7 +80,7 @@ src/plugin.ts                     서비스 생성 → 액션 주입 → connect
 
 ## Dependencies
 
-- `@elgato/streamdeck` ^2.1.0 — 유일한 런타임 의존. **네이티브 바이너리 의존이 없다.**
+- `@elgato/streamdeck` ^2.1.0 — 유일한 런타임 의존. **네이티브 바이너리 의존이 없다.** 선언 위치는 **루트 [package.json](../package.json)** 이다(빌드 툴체인도 같이) — 이 워크스페이스 `package.json` 에는 `build`/`watch` 스크립트만 있다.
 - 게이지는 in-plugin SVG 생성이다. `@napi-rs/canvas` 같은 플랫폼별 네이티브 캔버스를 쓰면 이 저장소가 지키는 self-contained 배포 성질이 깨진다.
 - macOS 자격증명은 `/usr/bin/security` shell out(OS 기본 제공). Windows·Linux 는 파일 읽기 — **네이티브 의존이 없다.**
 - ⚠ **Windows 는 구현 · 미검증.** 이 저장소는 macOS 에서 작성됐다. 네이티브 의존이 없어 위험은 자격증명 경로(`%USERPROFILE%\.claude\.credentials.json` · `%USERPROFILE%\.codex\auth.json`)에 국한된다.
@@ -95,7 +95,7 @@ src/plugin.ts                     서비스 생성 → 액션 주입 → connect
 | tier 1 / tier 2 | statusline 캐시 읽기 / 계정 API 직접 폴링                                   |
 | last-good       | 마지막 성공 응답. 429·네트워크 실패 때 나이와 함께 계속 보여준다            |
 | most binding    | 같은 버킷의 창 중 utilization 이 가장 높은 것 = 사용자를 실제로 제약하는 창 |
-| 게이트 1 / 2    | 실기기 SVG 래스터라이저 확인 / 폴링 간격·UA 실측. 계획서 §7                 |
+| 게이트 1 / 2    | 실기기 SVG 래스터라이저 확인 / 폴링 간격·UA 실측                            |
 
 ## Data Flow
 

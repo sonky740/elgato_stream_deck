@@ -53,16 +53,16 @@ npm run test:watch
 ## 새 플러그인 추가
 
 1. 루트에 디렉토리를 만들고 루트 [package.json](package.json) 의 `workspaces` 에 추가한다.
-2. 워크스페이스 `tsconfig.json` 은 [tsconfig.base.json](tsconfig.base.json) 을 `extends` 하고 자기 `include`/`exclude` 만 둔다. 파일명·위치를 바꾸면 안 된다 — rollup 이 빌드 cwd 의 `tsconfig.json` 을 자동 탐색한다.
-3. `exclude` 에 **`src/**/*.test.ts` 를 반드시 넣는다.** 빼면 rollup 의 타입체크가 테스트 파일까지 검사해 vitest 전역(`describe`/`it`)을 못 찾고 빌드가 깨진다.
+2. 워크스페이스 `package.json` 에는 **의존성을 선언하지 않는다** — 자기 `build`/`watch` 스크립트만 둔다. 런타임 SDK(`@elgato/streamdeck`) 와 툴체인(rollup + 플러그인, typescript, `@types/node`, `@elgato/cli`, ESLint·Prettier·vitest) 은 모두 루트 [package.json](package.json) 이 준다.
+3. 워크스페이스 `tsconfig.json` 은 [tsconfig.base.json](tsconfig.base.json) 을 `extends` 하고 자기 `include`/`exclude` 만 둔다. 파일명·위치를 바꾸면 안 된다 — rollup 이 빌드 cwd 의 `tsconfig.json` 을 자동 탐색한다.
+4. `exclude` 에 **`src/**/*.test.ts` 를 반드시 넣는다.** 빼면 rollup 의 타입체크가 테스트 파일까지 검사해 vitest 전역(`describe`/`it`)을 못 찾고 빌드가 깨진다.
 
 루트 [eslint.config.mjs](eslint.config.mjs) 와 `.prettierrc.json` 은 `config-protection` 훅 대상이라 편집이 차단된다. 포매팅은 Prettier 에 일임하고 ESLint 는 `eslint-config-prettier` 로 충돌 룰만 끈다.
 
 ## 문서 지도
 
-|                                                                                           |                                                                      |
-| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [CLAUDE.md](CLAUDE.md)                                                                    | 저장소 개요 + **손대기 전에 알아야 할 결합 관계**(플러그인별 gotcha) |
-| `<플러그인>/SPEC.md`                                                                      | 계약·비즈니스 규칙 (SSOT)                                            |
-| `<플러그인>/DECISIONS.md`                                                                 | 설계 결정과 이유, 검토한 대안                                        |
-| [ai-limits-plan.md](ai-limits-plan.md) · [ai-limits-checklist.md](ai-limits-checklist.md) | c_ai_usage 의 근거·실측값과 실행 상태                                |
+|                           |                                                                      |
+| ------------------------- | -------------------------------------------------------------------- |
+| [CLAUDE.md](CLAUDE.md)    | 저장소 개요 + **손대기 전에 알아야 할 결합 관계**(플러그인별 gotcha) |
+| `<플러그인>/SPEC.md`      | 계약·비즈니스 규칙 (SSOT)                                            |
+| `<플러그인>/DECISIONS.md` | 설계 결정과 이유, 검토한 대안                                        |

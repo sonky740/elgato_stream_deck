@@ -162,10 +162,8 @@ node scripts/build-readme-shots.mjs  # 위 README 스크린샷 4장 재생성 (n
 
 ## 문서
 
-|                                                        |                                 |
-| ------------------------------------------------------ | ------------------------------- |
-| [SPEC.md](SPEC.md)                                     | 계약·비즈니스 규칙 (SSOT)       |
-| [DECISIONS.md](DECISIONS.md)                           | 설계 결정과 이유, 검토한 대안   |
-| [../ai-limits-plan.md](../ai-limits-plan.md)           | 근거·실측 계약·페이즈 계획      |
-| [../ai-limits-checklist.md](../ai-limits-checklist.md) | 실행 상태                       |
-| [../CLAUDE.md](../CLAUDE.md)                           | 손대기 전에 알아야 할 결합 관계 |
+|                              |                                 |
+| ---------------------------- | ------------------------------- |
+| [SPEC.md](SPEC.md)           | 계약·비즈니스 규칙 (SSOT)       |
+| [DECISIONS.md](DECISIONS.md) | 설계 결정과 이유, 검토한 대안   |
+| [../CLAUDE.md](../CLAUDE.md) | 손대기 전에 알아야 할 결합 관계 |

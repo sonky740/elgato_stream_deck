@@ -71,6 +71,8 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 | vendored `smtc-helper`(.NET, `Windows.Media.Control`) | Windows 곡 정보 + 제어 (out-of-process, 미검증)                  |
 | Stream Deck 앱 7.1+                                   | Node 24 런타임 번들, 플러그인 로드                               |
 
+npm 의존성(`@elgato/streamdeck` + 빌드 툴체인)은 **루트 [package.json](../package.json)** 이 선언한다 — 이 워크스페이스 `package.json` 에는 `build`/`watch` 스크립트만 있다. vendored 네이티브 의존은 npm 밖이라 이 디렉토리에 그대로 있다.
+
 ## Glossary
 
 | 용어                | 정의                                                                             |

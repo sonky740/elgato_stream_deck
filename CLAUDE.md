@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 저장소 개요
 
-Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 플러그인은 루트 하위 디렉토리에 자기완결적으로 들어가고(독립 빌드), **ESLint·Prettier·vitest 설정은 루트에서 공용**으로 가져다 쓴다. 새 플러그인은 루트에 디렉토리를 만들고 루트 [package.json](package.json)의 `workspaces`에 추가한다.
+Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 플러그인은 루트 하위 디렉토리에 자기완결적으로 들어가고(독립 빌드), **의존성 선언은 전부 루트 [package.json](package.json)에 모여 있다** — 툴체인은 devDependencies(rollup + 플러그인 4종, typescript·tslib, `@types/node`, `@elgato/cli`, ESLint·Prettier·vitest), 런타임 SDK `@elgato/streamdeck`은 dependencies. 워크스페이스 `package.json`은 `name`·`type: module`·자기 `build`/`watch` 스크립트만 갖는 **스크립트 홀더**이고 의존성 필드가 없다(전 플러그인이 같은 SDK·툴체인 버전을 쓴다). 새 플러그인은 루트에 디렉토리를 만들고 루트 `workspaces`에 추가한다 — SDK 버전을 플러그인별로 갈라야 하는 날이 오면 그 워크스페이스에만 `dependencies`를 되살린다(로컬 선언이 루트를 이긴다).
 
 | 워크스페이스                           | 플러그인                                                  | 상태                             |
 | -------------------------------------- | --------------------------------------------------------- | -------------------------------- |
@@ -81,8 +81,8 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 - **빌드 산출물**: `*.sdPlugin/bin/`은 rollup 출력이며 gitignore 대상. 소스는 `src/`만. 매니페스트 `CodePath`는 `bin/plugin.js`를 가리킨다.
 - **Node 런타임**은 Stream Deck 앱이 번들(매니페스트 `Nodejs.Version`)한다. 로컬 Node 버전과 무관하며, 앱이 7.1 미만이면 플러그인이 로드되지 않는다.
 - **vendored 네이티브 의존**: [vendor/mediaremote-adapter/](media_controller/com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/)의 perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)는 **gitignore 대상이 아니며 커밋된다**(self-contained 배포). `darwin.ts`는 `import.meta.url` 기준 `../vendor/...`로 경로를 해석한다 — 번들 레이아웃을 바꾸면 이 경로도 같이 바꿔야 한다. 프레임워크는 ad-hoc 서명이라 복사 시 서명이 유지돼야 로드된다(`codesign --verify`로 확인).
-- **공용 tsconfig는 루트 base**: 공통 컴파일러 옵션은 루트 [tsconfig.base.json](tsconfig.base.json)에 모으고, 각 워크스페이스 [tsconfig.json](media_controller/tsconfig.json)은 `extends: "../tsconfig.base.json"` + 자기 `include`/`exclude`만 둔다. base가 `@tsconfig/node20`을 extends 하므로 그 의존성은 **루트** devDependencies에 있다(워크스페이스 아님). 새 플러그인은 같은 패턴으로 base를 extends 한다. rollup(`@rollup/plugin-typescript`)은 빌드 cwd(=워크스페이스)의 `tsconfig.json`을 자동 탐색하므로 파일명/위치를 바꾸면 안 된다.
-- **모노레포 hoist ↔ @types/node**: workspaces가 의존성을 루트 `node_modules`로 hoist 하면 플러그인 폴더의 `node_modules`가 비어, tsc가 node 타입(`process`/`Buffer`/`node:*`)을 자동 포함하지 못한다. base의 `"types": ["node"]`가 이를 해결한다(워크스페이스가 extends로 상속) — 빼면 빌드에 TS 경고가 쏟아진다.
+- **공용 tsconfig는 루트 base**: 공통 컴파일러 옵션은 루트 [tsconfig.base.json](tsconfig.base.json)에 모으고, 각 워크스페이스 [tsconfig.json](media_controller/tsconfig.json)은 `extends: "../tsconfig.base.json"` + 자기 `include`/`exclude`만 둔다. base가 `@tsconfig/node20`을 extends 하므로 그 의존성도 루트에 있다(툴체인 전체가 루트라 예외가 아니다). 새 플러그인은 같은 패턴으로 base를 extends 한다. rollup(`@rollup/plugin-typescript`)은 빌드 cwd(=워크스페이스)의 `tsconfig.json`을 자동 탐색하므로 파일명/위치를 바꾸면 안 된다.
+- **모노레포 hoist ↔ @types/node**: 플러그인 폴더의 `node_modules`는 비어 있고(`@types/node`가 루트 선언이라 이제 항상 그렇다) tsc가 node 타입(`process`/`Buffer`/`node:*`)을 자동 포함하지 못한다. base의 `"types": ["node"]`가 이를 해결한다(워크스페이스가 extends로 상속) — 빼면 빌드에 TS 경고가 쏟아진다.
 - **공용 lint 설정은 보호됨**: 루트 [eslint.config.mjs](eslint.config.mjs)·[.prettierrc.json](.prettierrc.json)은 `config-protection` 훅 대상이라 Write/Edit가 차단된다. 정당한 변경이면 `~/.claude/settings.json`에서 해당 훅을 잠시 비활성화 후 수정한다. 포매팅은 Prettier에 일임하고 ESLint는 `eslint-config-prettier`로 충돌 룰만 끈다.
 
 ## 미디어 백엔드: 핵심 제약과 현재 상태
@@ -145,7 +145,7 @@ pwsh scripts/build-smtc-helper.ps1 -SelfContained # 자체 포함(런타임 불�
 
 ## 아키텍처 — c_ai_usage
 
-Claude·Codex 구독 사용량 한도 게이지. 상세 계약·비즈니스 규칙은 [c_ai_usage/SPEC.md](c_ai_usage/SPEC.md), 결정 이력은 [c_ai_usage/DECISIONS.md](c_ai_usage/DECISIONS.md), 근거·실측값은 [ai-limits-plan.md](ai-limits-plan.md), 실행 상태는 [ai-limits-checklist.md](ai-limits-checklist.md).
+Claude·Codex 구독 사용량 한도 게이지. 상세 계약·비즈니스 규칙은 [c_ai_usage/SPEC.md](c_ai_usage/SPEC.md), 결정 이력은 [c_ai_usage/DECISIONS.md](c_ai_usage/DECISIONS.md).
 
 media_controller와 **폴링 구조가 정반대**다. 거기서는 인스턴스마다 1초 `setInterval`이 로컬 캐시를 읽지만, 여기서는 매 폴링이 레이트리밋된 HTTPS 요청이다.
 
@@ -154,7 +154,7 @@ media_controller와 **폴링 구조가 정반대**다. 거기서는 인스턴스
 - **인스턴스는 폴링 타이머를 갖지 않는다.** 프로바이더당 공유 서비스(`usage/service.ts`) 하나가 타이머·last-good 캐시를 소유하고 액션은 구독만 한다. media_controller의 `#timers` Map 관용구를 복사하면 다이얼 2개를 올리는 순간 요청률이 2배가 된다.
 - **컨트롤 매핑**: (키) 누름 → 차트 순환. (다이얼) 회전 → 회전 **방향으로 차트 한 칸**(양끝에서 감싸므로 같은 방향으로 계속 돌려도 계속 바뀐다), 누름·터치 탭 → 기준(사용량↔남은양) 전환. 스텝은 `ticks` **크기가 아니라 방향(±1)**이다 — 빠르게 튕기면 한 이벤트에 ticks 가 여러 개 실려 오고, 차트가 2종이라 크기만큼 이동하면 짝수 입력이 제자리가 되어 반응이 없는 것처럼 보인다. 회전은 400ms **leading-edge throttle**(`ROTATE_THROTTLE_MS`)로 비율을 제한한다 — debounce 로 바꾸면 회전이 멎을 때까지 화면이 가만히 있어 순환으로 되돌린 이유가 되살아난다. **버린 이벤트로 창을 밀지 않는다**(밀면 계속 돌리는 동안 영구히 막힌다). 키는 누름을 차트에 쓰므로 기준이 PI 전용으로 남는다.
 - **⚠ 인스턴스 설정을 구독 콜백에 캡처하면 안 된다.** `onWillAppear`의 `ev.payload.settings`를 클로저에 담으면 폴링 렌더가 appear 시점 스냅샷에 고정되어, 기기·PI에서 바꾼 차트가 다음 폴링에 **조용히 되돌아간다**. 현재 설정은 `#settings` Map이 소유한다 — 네 Map(`#detachers`·`#lastSent`·`#lastVm`·`#settings`)의 수명이 `onWillDisappear` 한 곳에서 갈리게 유지한다.
-- **실패가 요청 빈도를 올리는 경로를 만들면 안 된다.** 이 저장소 히스토리에 실제 사고가 있다 — 삭제된 서드파티 플러그인이 백오프 없이 계정 OAuth 토큰으로 ~930 req/min을 쏴 로그 390MB를 남겼다(계획서 §0). 실패 시 대기는 항상 폴링 간격 이상, 연속 4회부터 고정 쿨다운.
+- **실패가 요청 빈도를 올리는 경로를 만들면 안 된다.** 이 저장소 히스토리에 실제 사고가 있다 — 삭제된 서드파티 플러그인이 백오프 없이 계정 OAuth 토큰으로 ~930 req/min을 쏴 로그 390MB를 남겼다. 실패 시 대기는 항상 폴링 간격 이상, 연속 4회부터 고정 쿨다운.
 - **토큰 refresh 금지.** refresh token이 1회용으로 회전해 갱신하면 Claude Code CLI가 로그아웃된다. 폴링마다 키체인을 다시 읽는 것으로 대체한다(access token 수명 ≈5시간).
 - **`utilization: number | null`을 끝까지 유지한다.** `null`은 0이 아니다. `basis: remaining`에서 `100 - null`이 "100% 남음"으로 표시되면 진실이 "모름"인데 여유 만점이라고 오표시된다.
 - **창 라벨은 슬롯 위치가 아니라 창 길이에서 파생한다.** Codex의 `primary` 슬롯이 5시간→주간으로 바뀐 이력이 있다.
