@@ -4,6 +4,30 @@ Claude · Codex 구독의 **5시간 창과 주간 창 사용량**을 Stream Deck
 
 수치는 **계정 범위 서버 계산값**만 쓴다 — 로컬 사용량 로그(`~/.claude/projects/**/*.jsonl` 등)는 쓰지 않는다. 여러 기기에서 AI 를 쓰면 한 기기의 로그로는 합산이 성립하지 않기 때문이다.
 
+## 이렇게 보인다
+
+키와 다이얼에 각각 올릴 수 있고, 차트는 **도넛**과 **세그먼트 바** 두 종류다. 네 장 모두 같은 값(5시간 창 37% · 주간 창 26%)이라 레이아웃만 다르다.
+
+<table>
+  <tr>
+    <td></td>
+    <th>도넛</th>
+    <th>세그먼트 바</th>
+  </tr>
+  <tr>
+    <th align="left">키<br /><sub>144×144</sub></th>
+    <td><img src="docs/key-donut.png" width="144" alt="키 도넛 — 5시간 창 37% 가 대형 숫자, 주간 26% 가 하단 줄" /></td>
+    <td><img src="docs/key-bar.png" width="144" alt="키 세그먼트 바 — 5시간 창 37% 와 주간 26% 가 10칸 미터 두 줄" /></td>
+  </tr>
+  <tr>
+    <th align="left">다이얼<br /><sub>200×100</sub></th>
+    <td><img src="docs/dial-donut.png" width="200" alt="다이얼 도넛 — 같은 크기 링 2개가 나란히" /></td>
+    <td><img src="docs/dial-bar.png" width="200" alt="다이얼 세그먼트 바 — 10칸 미터 두 줄" /></td>
+  </tr>
+</table>
+
+이미지의 어두운 배경은 **스트림덱 프로필 배경**이다 — 플러그인은 캔버스를 칠하지 않는다([알려진 한계](#알려진-한계)).
+
 ## 요구사항
 
 |                |                                                                             |
@@ -118,8 +142,11 @@ npm run watch -w c-ai-usage   # 변경 감지 빌드 + 저장 시 자동 streamd
 
 ```bash
 npx streamdeck validate com.sonky.c-ai-usage.sdPlugin
-node scripts/build-icons.mjs  # 아이콘 16장 재생성 (헤드리스 Chrome)
+node scripts/build-icons.mjs         # 아이콘 16장 재생성 (헤드리스 Chrome)
+node scripts/build-readme-shots.mjs  # 위 README 스크린샷 4장 재생성 (npm test 를 먼저 돌린다)
 ```
+
+**렌더러를 고치면 README 스크린샷도 다시 굽는다** — `docs/*.png` 는 커밋된 생성물이고 낡아도 아무 신호가 없다. 입력은 `npm test` 가 만드는 `preview/*.svg` 라 순서가 있다.
 
 타입체크는 별도 스크립트 없이 `npm run build`(rollup 의 `@rollup/plugin-typescript`)가 겸한다.
 
