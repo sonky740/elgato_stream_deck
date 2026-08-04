@@ -28,8 +28,18 @@ export const DEFAULT_POLL_SEC = 300;
 export const MIN_POLL_SEC = 60;
 export const MAX_POLL_SEC = 3600;
 
+/** 순환 순서이자 유효값 목록. 두 곳에 나눠 두면 차트를 추가할 때 한쪽을 빼먹는다. */
+export const CHART_TYPES: readonly ChartType[] = ['donut', 'bar'];
+
 export function resolveChart(s: GaugeSettings | undefined): ChartType {
-  return s?.chart === 'bar' || s?.chart === 'donut' ? s.chart : DEFAULT_CHART;
+  const chart = s?.chart;
+  return chart !== undefined && CHART_TYPES.includes(chart) ? chart : DEFAULT_CHART;
+}
+
+/** 다음 차트. 키 누름은 회전 방향 같은 정보가 없어 순환만 할 수 있다. */
+export function nextChart(current: ChartType): ChartType {
+  const i = CHART_TYPES.indexOf(current);
+  return CHART_TYPES[(i + 1) % CHART_TYPES.length] ?? DEFAULT_CHART;
 }
 
 export function resolveBasis(s: GaugeSettings | undefined): Basis {
