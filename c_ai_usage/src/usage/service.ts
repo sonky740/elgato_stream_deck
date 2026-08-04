@@ -32,6 +32,8 @@ const SOFT_FAILURES: ReadonlySet<SourceState> = new Set<SourceState>(['throttled
 export type UsageService = {
   /** 구독하고 즉시 현재 값을 1회 받는다. 반환된 함수를 disappear 에서 호출한다. */
   subscribe(listener: (vm: UsageViewModel) => void): () => void;
+  /** 전역 설정이 바뀌었을 때 폴링 간격을 갈아끼운다. */
+  setIntervalMs(ms: number): void;
 };
 
 /**
@@ -47,6 +49,7 @@ export type UsageService = {
  * 3. 연속 실패 → 서킷 오픈  4. 인스턴스 수가 요청률에 영향 없음
  */
 export function createUsageService(source: LimitsSource, opts: UsageServiceOptions): UsageService {
+  let intervalMs = opts.intervalMs;
   const listeners = new Set<(vm: UsageViewModel) => void>();
   let timer: NodeJS.Timeout | undefined;
   let inFlight = false;
@@ -88,9 +91,9 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
   /** 실패 시 대기 시간. 항상 `intervalMs` 이상이다 — 실패가 요청 빈도를 올리는 경로를 없앤다. */
   function backoffMs(): number {
     if (failures >= CIRCUIT_THRESHOLD) {
-      return Math.max(CIRCUIT_COOLDOWN_MS, opts.intervalMs);
+      return Math.max(CIRCUIT_COOLDOWN_MS, intervalMs);
     }
-    return Math.min(opts.intervalMs * 2 ** failures, MAX_BACKOFF_MS);
+    return Math.min(intervalMs * 2 ** failures, MAX_BACKOFF_MS);
   }
 
   async function poll(): Promise<void> {
@@ -106,7 +109,7 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
         failures = 0;
         lastGood = { slots: result.slots, fetchedAtMs: now };
         emit({ provider: source.provider, slots: result.slots, state: 'ok', fetchedAtMs: now });
-        schedule(opts.intervalMs);
+        schedule(intervalMs);
         return;
       }
 
@@ -158,6 +161,18 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
           timer = undefined;
         }
       };
+    },
+
+    setIntervalMs(ms) {
+      if (ms === intervalMs) {
+        return;
+      }
+      intervalMs = ms;
+      // 실패 중이면 다시 잡지 않는다 — 백오프·서킷 대기를 새 간격으로 갈아치우면 그 대기가
+      // 짧아져 실패가 요청 빈도를 올리는 경로가 다시 열린다. 다음 성공 후부터 적용된다.
+      if (failures === 0 && timer !== undefined) {
+        schedule(intervalMs);
+      }
     },
   };
 }

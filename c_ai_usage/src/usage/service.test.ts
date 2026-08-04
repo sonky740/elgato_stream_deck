@@ -195,3 +195,45 @@ describe('createUsageService', () => {
     expect(seen.at(-1)?.state).toBe('network');
   });
 });
+
+describe('setIntervalMs', () => {
+  it('성공 상태에서 간격을 줄이면 다음 폴링이 새 간격으로 온다', async () => {
+    const source = fakeSource([OK_SLOTS]);
+    const service = createUsageService(source, { intervalMs: INTERVAL, staleLimitMs: STALE_LIMIT });
+    const off = service.subscribe(() => {});
+    await firstFetch();
+    expect(source.calls).toBe(1);
+
+    service.setIntervalMs(60_000);
+    await vi.advanceTimersByTimeAsync(60_000 + JITTER + 20);
+    expect(source.calls).toBe(2);
+    off();
+  });
+
+  it('같은 값이면 아무것도 하지 않는다 — 재스케줄로 대기가 리셋되지 않게', async () => {
+    const source = fakeSource([OK_SLOTS]);
+    const service = createUsageService(source, { intervalMs: INTERVAL, staleLimitMs: STALE_LIMIT });
+    const off = service.subscribe(() => {});
+    await firstFetch();
+    // interval 직전까지 진행한 뒤 같은 값으로 호출해도 대기가 늘어나선 안 된다.
+    await vi.advanceTimersByTimeAsync(INTERVAL - JITTER - 10);
+    service.setIntervalMs(INTERVAL);
+    await vi.advanceTimersByTimeAsync(JITTER + 20);
+    expect(source.calls).toBe(2);
+    off();
+  });
+
+  it('실패 중에는 대기를 다시 잡지 않는다 — 백오프가 짧아지면 §0 사고 경로가 다시 열린다', async () => {
+    const source = fakeSource([{ state: 'network', slots: { fiveHour: null, week: null } }]);
+    const service = createUsageService(source, { intervalMs: INTERVAL, staleLimitMs: STALE_LIMIT });
+    const off = service.subscribe(() => {});
+    await firstFetch();
+    expect(source.calls).toBe(1);
+
+    // 실패 1회 후 대기는 INTERVAL*2 다. 여기서 간격을 60s 로 줄여도 그 대기가 짧아지면 안 된다.
+    service.setIntervalMs(60_000);
+    await vi.advanceTimersByTimeAsync(60_000 * 3);
+    expect(source.calls).toBe(1);
+    off();
+  });
+});

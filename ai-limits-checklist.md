@@ -41,7 +41,7 @@
   - [x] 도넛 설계 유지 확정 — 네이티브 `bar`/`gbar` 폴백 불필요, `MESSAGE` 표 한글 유지
   - [x] 프로브 해제 + 실제 게이지 end-to-end — 로그 `claude usage: loading → ok (5H 69% / WK 30%)`
   - [x] 인코딩 판정 — **raw `<svg>` 문자열은 pixmap 에서 안 그려진다**(빈 화면, 전송 오류 없음). Elgato 스키마 설명과 실제가 불일치. `encodeSvg()` 를 base64 data URI 로 교체
-  - [ ] **base64 data URI 다이얼 표시 확인** — 스키마 워크드 예시 형식. 비어 보이면 `charset=utf8`(이 기기에서 확인됨, 미문서화)로 대체
+  - [x] **base64 data URI 다이얼 표시 확인 — 잘 보인다.** 출하 형식 확정
   - [ ] ~~키에서 `setImage` 로 반복~~ → 매니페스트가 `Controllers: ["Encoder"]` 뿐이라 지금 불가. Phase 4 로 이월
 - [x] `npm run watch -w c-ai-usage` 대신 `streamdeck restart` 로 실기기 반영 확인 (프로브 4회·게이지 1회)
 
@@ -145,15 +145,15 @@
 
 ## Phase 2 — Property Inspector (§9)
 
-- [ ] 시작 순서: 서비스 생성 → 액션 등록 → `connect()` → `getGlobalSettings()` → 설정 → 폴링 시작 (v1 은 전역 설정이 없어 해당 없음 — PI 도입과 함께 필요해진다)
-- [ ] `onDidReceiveGlobalSettings` 로 라이브 재설정
-- [ ] 액션별 `PropertyInspectorPath` + HTML
-- [ ] `sdpi-components` v4 를 **`vendor/` 아래로 로컬 vendor** (루트 eslint 가 `**/vendor/**`, .prettierignore 가 `**/vendor/` 를 이미 무시 → 보호된 설정 파일 안 건드림)
-- [ ] `chart`(donut\|bar) · `basis`(used\|remaining) 컨트롤 — 기본값은 v1 동작과 동일
-- [ ] 설정 스코프 분리: 인스턴스 = chart/basis/어느 weekly / 전역 = 폴링 간격·토큰류
-- [ ] 토큰류를 액션 설정에 **절대** 두지 않음(평문 + 프로필 export 포함). `<sdpi-password … global>`
-- [ ] `getSecrets()` 사용 안 함 (읽기 전용 · Marketplace+DRM · deprecated)
-- [ ] 숫자 설정에 `value-type` 명시
+- [x] 시작 순서 — 서비스(기본 간격) → 액션 등록 → `await connect()` → `getGlobalSettings()` → `setIntervalMs`. 폴링은 구독 시점에 시작하므로 순서 문제가 없다(최악의 경우 첫 1회만 기본 간격)
+- [x] `onDidReceiveGlobalSettings` 로 라이브 재설정 + `onDidReceiveSettings` 로 차트·기준 변경 시 즉시 재렌더(폴링 대기 없이)
+- [x] 액션별 `PropertyInspectorPath` + HTML — `ui/claude-usage.html`
+- [x] `sdpi-components` v4.0.1 을 **`vendor/` 아래로 로컬 vendor**(공식 릴리스 URL 에서 내려받음) (루트 eslint 가 `**/vendor/**`, .prettierignore 가 `**/vendor/` 를 이미 무시 → 보호된 설정 파일 안 건드림)
+- [x] `chart`(donut\|bar) · `basis`(used\|remaining) `sdpi-radio` — 기본값 `donut`+`used`(v1 동작과 동일)
+- [x] 설정 스코프 분리 — 인스턴스: chart·basis / 전역: 폴링 간격(60~3600s, 경계 clamp). 어느 weekly 는 most-binding 자동 선택이라 설정 불필요
+- [x] 토큰류를 **어느 설정에도** 두지 않음 — 키체인/`auth.json` 에서 읽으므로 담을 필요가 없다
+- [x] `getSecrets()` 사용 안 함 (읽기 전용 · Marketplace+DRM · deprecated)
+- [x] 숫자 설정에 `value-type="number"` 명시 + `resolvePollMs` 가 문자열도 받아 clamp
 
 ## Phase 3 — Codex (§4.2)
 

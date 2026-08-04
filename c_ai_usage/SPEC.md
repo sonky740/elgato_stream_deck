@@ -9,7 +9,8 @@ Codex 는 Phase 3 이다. 근거·실측 계약·페이즈 계획은 [../ai-limi
 ## Features
 
 - **Claude Usage** 액션 — 다이얼(터치스트립 200×100) / 키(144×144). 5H · WK 두 게이지 + 퍼센티지.
-- 차트 도넛 / 가로 바, 기준 사용량 / 남은양 — 렌더러는 네 조합을 다 그린다. v1 은 `donut` + `used` 고정(Property Inspector 는 Phase 2).
+- 차트 **도넛 / 가로 바**, 기준 **사용량 / 남은양** — Property Inspector 에서 인스턴스별로 고른다. 기본값은 `donut` + `used`.
+- 갱신 주기는 **전역 설정**(60~3600s, 기본 300s) — 프로바이더 공유 자원이라 인스턴스별로 두면 요청률이 곱해진다.
 - 2단 읽기: Claude Code statusline 캐시가 신선하면 네트워크 0, 아니면 계정 API 직접 폴링.
 - 실패 상태 11종이 서로 구분되는 화면을 갖는다.
 
@@ -28,6 +29,9 @@ Codex 는 Phase 3 이다. 근거·실측 계약·페이즈 계획은 [../ai-limi
 11. **액션 인스턴스 수가 요청률에 영향을 주지 않는다.** 인스턴스는 공유 서비스를 구독만 하고 자기 네트워크 타이머를 갖지 않는다.
 12. **응답 본문을 로그·캐시·디스크에 그대로 쓰지 않는다.** Codex 응답에는 `email`·`user_id`·`account_id` 가 평문으로 들어 있다. Claude 키체인 blob 에는 `claudeAiOauth` 외에 MCP 서버별 clientSecret 이 동거하므로 그 한 필드만 읽는다.
 13. **로컬 사용량 로그를 소스로 쓰지 않는다.** `~/.claude/projects/**/*.jsonl` · `~/.codex/sessions/**/*.jsonl` 는 명시적으로 배제한다.
+14. **설정 스코프**: 차트·기준은 **인스턴스**(액션 설정), 갱신 주기는 **전역**. 토큰류는 어느 쪽에도 두지 않는다 — 액션 설정은 평문이고 프로필 export 에 포함된다.
+15. **갱신 주기 하한 60s.** 게이트 2 실측 근거값이다. 그보다 짧게 열면 사용자가 §0 사고를 재현할 수 있으므로 경계에서 clamp 한다.
+16. **폴링 간격 변경은 실패 중에 적용하지 않는다.** 백오프·서킷 대기를 새 간격으로 갈아치우면 그 대기가 짧아져 "실패가 요청 빈도를 올리는 경로" 가 다시 열린다.
 
 ## Architecture
 
@@ -47,26 +51,30 @@ src/plugin.ts                     서비스 생성 → 액션 주입 → connect
 
 ## File Structure
 
-| 경로                             | 역할                                                                          |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `src/plugin.ts`                  | 진입점. 폴링 간격·stale 상한 상수                                             |
-| `src/actions/claude-usage.ts`    | 액션. 구독·SVG 렌더·dedupe. `encodeSvg()` 가 게이트 1 전환점                  |
-| `src/render/gauge.ts`            | 순수 렌더러. 4조합 × 슬롯 arity                                               |
-| `src/usage/types.ts`             | 계약 + `assignSlots` (버킷팅·most-binding)                                    |
-| `src/usage/service.ts`           | 공유 poller                                                                   |
-| `src/usage/claude.ts`            | Claude 어댑터 + `parseUsage`                                                  |
-| `src/usage/claude-statusline.ts` | tier 1 캐시 리더                                                              |
-| `src/usage/http.ts`              | JSON GET, 상태코드→state 매핑, Cloudflare HTML 가드                           |
-| `src/usage/credentials.ts`       | 키체인/파일 읽기, JWT `exp` 디코드, 만료 선판정                               |
-| `scripts/statusline-cache.mjs`   | Claude Code statusline 훅. `rate_limits` → 캐시 JSON(원자적) + 상태줄 출력    |
-| `fixtures/`                      | 실측 응답 + 실패 케이스. 렌더·파싱 검증을 네트워크 0으로 돌리기 위한 것       |
-| `com.sonky.c-ai-usage.sdPlugin/` | 매니페스트·레이아웃·아이콘. `layouts/usage.json` 은 pixmap 하나로 캔버스 전체 |
+| 경로                              | 역할                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `src/plugin.ts`                   | 진입점. 폴링 간격·stale 상한 상수                                             |
+| `src/actions/claude-usage.ts`     | 액션. 구독·SVG 렌더·dedupe. `encodeSvg()` 가 게이트 1 전환점                  |
+| `src/render/gauge.ts`             | 순수 렌더러. 4조합 × 슬롯 arity                                               |
+| `src/usage/types.ts`              | 계약 + `assignSlots` (버킷팅·most-binding)                                    |
+| `src/usage/service.ts`            | 공유 poller                                                                   |
+| `src/usage/claude.ts`             | Claude 어댑터 + `parseUsage`                                                  |
+| `src/usage/claude-statusline.ts`  | tier 1 캐시 리더                                                              |
+| `src/usage/http.ts`               | JSON GET, 상태코드→state 매핑, Cloudflare HTML 가드                           |
+| `src/usage/credentials.ts`        | 키체인/파일 읽기, JWT `exp` 디코드, 만료 선판정                               |
+| `src/settings.ts`                 | 설정 계약 + 기본값·clamp. 인스턴스/전역 스코프 분리                           |
+| `com.sonky…/ui/claude-usage.html` | Property Inspector                                                            |
+| `com.sonky…/vendor/`              | 로컬 vendor 한 `sdpi-components` v4.0.1. 루트 lint·prettier 가 이미 무시      |
+| `scripts/statusline-cache.mjs`    | Claude Code statusline 훅. `rate_limits` → 캐시 JSON(원자적) + 상태줄 출력    |
+| `fixtures/`                       | 실측 응답 + 실패 케이스. 렌더·파싱 검증을 네트워크 0으로 돌리기 위한 것       |
+| `com.sonky.c-ai-usage.sdPlugin/`  | 매니페스트·레이아웃·아이콘. `layouts/usage.json` 은 pixmap 하나로 캔버스 전체 |
 
 ## Dependencies
 
 - `@elgato/streamdeck` ^2.1.0 — 유일한 런타임 의존. **네이티브 바이너리 의존이 없다.**
 - 게이지는 in-plugin SVG 생성이다. `@napi-rs/canvas` 같은 플랫폼별 네이티브 캔버스를 쓰면 이 저장소가 지키는 self-contained 배포 성질이 깨진다.
 - macOS 자격증명은 `/usr/bin/security` shell out(OS 기본 제공).
+- PI 는 `sdpi-components` v4.0.1 을 **로컬 vendor** 한다(CDN 아님). ⚠ 이 버전에 `sdpi-item-group` 은 **없다** — 커스텀 엘리먼트 등록 목록으로 확인했다.
 
 ## Glossary
 

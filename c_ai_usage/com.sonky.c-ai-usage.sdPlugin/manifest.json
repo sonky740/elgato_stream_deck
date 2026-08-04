@@ -18,7 +18,8 @@
         {
           "Image": "imgs/actions/claude/key"
         }
-      ]
+      ],
+      "PropertyInspectorPath": "ui/claude-usage.html"
     }
   ],
   "Category": "C AI Usage",

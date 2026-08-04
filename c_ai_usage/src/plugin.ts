@@ -1,6 +1,7 @@
 import streamDeck from '@elgato/streamdeck';
 
 import { ClaudeUsageAction } from './actions/claude-usage';
+import { resolvePollMs, type GlobalSettings } from './settings';
 import { ClaudeSource } from './usage/claude';
 import { fakeSourceFromEnv } from './usage/fake';
 import { createUsageService } from './usage/service';
@@ -8,14 +9,6 @@ import { createUsageService } from './usage/service';
 // trace 를 쓰지 않는다 — Codex 사용량 응답 본문에 email 등 PII 가 평문으로 실려 로그 파일로 새어나간다
 // (ai-limits-plan.md §4.2 · §10). 응답 본문은 어떤 레벨에서도 그대로 기록하지 않는다.
 streamDeck.logger.setLevel('info');
-
-/**
- * 폴링 간격. 게이트 2 에서 60s 간격 12회가 429 없이 통과했지만 그 최솟값을 쓰지 않는다 —
- * 표본이 6분짜리라 시간 단위 지속 가능성의 증거가 아니고, 이 게이지에 60s 해상도가 필요하지도 않다.
- * 300s 는 Claude Code 자체의 usage 캐시 재기록 간격과 같고, 정상 동작 중인 codex-usage 플러그인의
- * 기본값과도 일치한다(ai-limits-plan.md §7 게이트 2).
- */
-const POLL_INTERVAL_MS = 300_000;
 
 /** 이 나이를 넘은 마지막 성공값은 더 보여주지 않고 실패 상태를 그대로 드러낸다. */
 const STALE_LIMIT_MS = 30 * 60_000;
@@ -31,12 +24,23 @@ if (fake !== null) {
     `claude source: fake (C_AI_USAGE_FAKE=${process.env['C_AI_USAGE_FAKE'] ?? ''})`,
   );
 }
+
+// 폴링 간격은 기본값으로 만들어 두고 전역 설정이 도착하면 갈아끼운다. 전역 설정은 connect()
+// 이후에만 읽을 수 있지만 폴링은 액션이 나타나 구독할 때 시작되므로 순서 문제가 없다 —
+// 최악의 경우 첫 1회만 기본 간격으로 돈다.
 const claude = createUsageService(fake ?? new ClaudeSource(), {
-  intervalMs: POLL_INTERVAL_MS,
+  intervalMs: resolvePollMs(undefined),
   staleLimitMs: STALE_LIMIT_MS,
 });
 
 streamDeck.logger.info('svg encoding: base64 data URI (raw SVG 는 pixmap 에서 안 그려짐)');
 streamDeck.actions.registerAction(new ClaudeUsageAction(claude));
 
-streamDeck.connect();
+streamDeck.settings.onDidReceiveGlobalSettings<GlobalSettings>((ev) => {
+  claude.setIntervalMs(resolvePollMs(ev.settings));
+});
+
+await streamDeck.connect();
+
+const globalSettings = await streamDeck.settings.getGlobalSettings<GlobalSettings>();
+claude.setIntervalMs(resolvePollMs(globalSettings));
