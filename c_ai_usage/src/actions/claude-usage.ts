@@ -122,12 +122,17 @@ function startProbe(action: GaugeAction): () => void {
 }
 
 /**
- * 게이트 1(실기기 SVG 래스터라이저 확인)의 결과에 따라 바꾸는 지점.
+ * SVG 를 Stream Deck 이 받는 형식으로 감싼다.
  *
- * Elgato 스키마는 pixmap `value` 와 `setImage` 모두 raw SVG 문자열을 허용한다고 명시하지만
- * 실기기 확인 전이다. raw 가 안 그려지면 base64 data URI 로 바꾼다:
- * `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
+ * **raw `<svg …>` 문자열은 pixmap 에서 그려지지 않는다** — 실기기 확인 결과다(2026-08-04).
+ * Elgato 의 layout 스키마는 pixmap `value` 가 "a path … , a base64 encoded `string` …, or an
+ * SVG `string`" 을 받는다고 적었지만 raw 문자열은 빈 화면이 됐다. 값이 경로로 해석되어
+ * 해석 실패로 끝나는 것으로 보인다(스키마 설명의 첫 항목이 경로다).
+ *
+ * 그래서 base64 data URI 로 보낸다 — 같은 스키마의 워크드 예시가 바로 이 형식이다.
+ * `charset=utf8` 형식도 이 기기에서 그려지는 것이 확인됐지만 어디에도 문서화돼 있지 않아
+ * 1순위로 쓰지 않는다. base64 마저 실패하면 그때 대체한다.
  */
 function encodeSvg(svg: string): string {
-  return svg;
+  return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
 }

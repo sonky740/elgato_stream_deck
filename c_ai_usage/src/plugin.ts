@@ -36,6 +36,7 @@ const claude = createUsageService(fake ?? new ClaudeSource(), {
   staleLimitMs: STALE_LIMIT_MS,
 });
 
+streamDeck.logger.info('svg encoding: base64 data URI (raw SVG 는 pixmap 에서 안 그려짐)');
 streamDeck.actions.registerAction(new ClaudeUsageAction(claude));
 
 streamDeck.connect();
