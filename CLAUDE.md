@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 저장소 개요
 
-Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 플러그인은 루트 하위 디렉토리에 자기완결적으로 들어가고(독립 빌드), **ESLint·Prettier 설정은 루트에서 공용**으로 가져다 쓴다. 첫 플러그인은 [media_controller/](media_controller/) — OS 미디어 세션을 통해 현재 재생 곡을 표시하고 제어한다(YouTube Music 포함, 넓게는 모든 미디어 플레이어). 새 플러그인은 루트에 디렉토리를 만들고 루트 [package.json](package.json)의 `workspaces`에 추가한다.
+Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 플러그인은 루트 하위 디렉토리에 자기완결적으로 들어가고(독립 빌드), **ESLint·Prettier·vitest 설정은 루트에서 공용**으로 가져다 쓴다. 새 플러그인은 루트에 디렉토리를 만들고 루트 [package.json](package.json)의 `workspaces`에 추가한다.
+
+| 워크스페이스                           | 플러그인                                                  | 상태                                         |
+| -------------------------------------- | --------------------------------------------------------- | -------------------------------------------- |
+| [media_controller/](media_controller/) | OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어) | macOS 검증 완료 / Windows 미검증             |
+| [c_ai_usage/](c_ai_usage/)             | Claude·Codex 구독 사용량 한도를 5시간·주간 게이지로 표시  | Phase 1 구현 중 — [SPEC](c_ai_usage/SPEC.md) |
 
 대상: macOS 12+ / Windows 10+. Stream Deck 앱 **7.1+** 필요(매니페스트 `SDKVersion: 3`, `Nodejs.Version: 24`).
 
@@ -19,7 +24,11 @@ npm run lint:fix             # eslint . --fix
 npm run format               # prettier --write .
 npm run format:check         # prettier --check .
 npm run build                # 모든 워크스페이스 빌드 (npm run build --workspaces --if-present)
+npm test                     # vitest run (전 워크스페이스의 src/**/*.test.ts)
+npm run test:watch           # vitest
 ```
+
+테스트는 **루트 vitest 하나**가 전 워크스페이스를 돈다. 각 워크스페이스 `tsconfig.json`은 `src/**/*.test.ts`를 `exclude` 해야 한다 — 안 그러면 rollup의 타입체크가 테스트 파일까지 검사해 vitest 전역(`describe`/`it`)을 못 찾고 빌드가 깨진다.
 
 플러그인별 빌드/배포·streamdeck 명령은 **플러그인 디렉토리 안에서** (예: `cd media_controller`), 또는 루트에서 `-w media-controller`로:
 
@@ -40,7 +49,7 @@ streamdeck list                               # 설치된 플러그인 목록
 
 타입체크는 별도 스크립트 없이 `npm run build`(rollup의 `@rollup/plugin-typescript`)가 겸한다.
 
-## 아키텍처
+## 아키텍처 — media_controller
 
 데이터 흐름은 한 방향이고 플랫폼 의존은 한 군데로 격리되어 있다:
 
@@ -130,3 +139,22 @@ pwsh scripts/build-smtc-helper.ps1 -SelfContained # 자체 포함(런타임 불�
 **Roadmap**:
 
 1. 배포 시 프레임워크 **공증(notarization)** 검토 — 현재는 ad-hoc 서명이라 본인 머신/개발용엔 충분하나 광범위 배포엔 Gatekeeper 이슈 가능.
+
+## 아키텍처 — c_ai_usage
+
+Claude·Codex 구독 사용량 한도 게이지. 상세 계약·비즈니스 규칙은 [c_ai_usage/SPEC.md](c_ai_usage/SPEC.md), 결정 이력은 [c_ai_usage/DECISIONS.md](c_ai_usage/DECISIONS.md), 근거·실측값은 [ai-limits-plan.md](ai-limits-plan.md), 실행 상태는 [ai-limits-checklist.md](ai-limits-checklist.md).
+
+media_controller와 **폴링 구조가 정반대**다. 거기서는 인스턴스마다 1초 `setInterval`이 로컬 캐시를 읽지만, 여기서는 매 폴링이 레이트리밋된 HTTPS 요청이다.
+
+### 손대기 전에 알아야 할 것 (c_ai_usage gotchas)
+
+- **인스턴스는 폴링 타이머를 갖지 않는다.** 프로바이더당 공유 서비스(`usage/service.ts`) 하나가 타이머·last-good 캐시를 소유하고 액션은 구독만 한다. media_controller의 `#timers` Map 관용구를 복사하면 다이얼 2개를 올리는 순간 요청률이 2배가 된다.
+- **실패가 요청 빈도를 올리는 경로를 만들면 안 된다.** 이 저장소 히스토리에 실제 사고가 있다 — 삭제된 서드파티 플러그인이 백오프 없이 계정 OAuth 토큰으로 ~930 req/min을 쏴 로그 390MB를 남겼다(계획서 §0). 실패 시 대기는 항상 폴링 간격 이상, 연속 4회부터 고정 쿨다운.
+- **토큰 refresh 금지.** refresh token이 1회용으로 회전해 갱신하면 Claude Code CLI가 로그아웃된다. 폴링마다 키체인을 다시 읽는 것으로 대체한다(access token 수명 ≈5시간).
+- **`utilization: number | null`을 끝까지 유지한다.** `null`은 0이 아니다. `basis: remaining`에서 `100 - null`이 "100% 남음"으로 표시되면 진실이 "모름"인데 여유 만점이라고 오표시된다.
+- **창 라벨은 슬롯 위치가 아니라 창 길이에서 파생한다.** Codex의 `primary` 슬롯이 5시간→주간으로 바뀐 이력이 있다.
+- **레이아웃은 pixmap 하나로 200×100 전체를 덮는다**([layouts/usage.json](c_ai_usage/com.sonky.c-ai-usage.sdPlugin/layouts/usage.json)). 캔버스를 매번 통째로 다시 그리므로 슬롯 공란·차트 전환·창 개수 변화가 전부 공짜다 — layout item의 `type`/`key`/`rect`는 런타임 변경이 불가능하기 때문에 이게 유일하게 단순한 길이다. `setFeedback` 키는 `canvas` 하나뿐.
+- **게이지는 in-plugin SVG 생성**(`render/gauge.ts`, 순수 함수)이다. 도넛 호는 `stroke-dasharray`가 아니라 arc path(`A`)로 그리고 `dominant-baseline`을 쓰지 않는다 — Stream Deck SVG 래스터라이저의 기능 지원 범위가 문서화돼 있지 않아 기본 기능만 쓴다. **실기기 확인(게이트 1)이 아직 남아 있고**, raw SVG가 안 그려지면 `actions/claude-usage.ts`의 `encodeSvg()` 한 곳만 base64 data URI로 바꾼다.
+- **응답 본문을 로그에 쓰지 않는다.** Codex 사용량 응답에 `email`·`user_id`·`account_id`가 평문으로 온다. 그래서 이 워크스페이스는 `logger.setLevel('info')`다(media_controller의 `'trace'`를 복사하면 안 된다). Claude 키체인 blob에는 MCP 서버별 clientSecret이 동거하므로 `claudeAiOauth` 한 필드만 읽는다.
+- **`preview/`는 생성물**(gitignore). `npm test`가 SVG 64장 + `index.html` 컨택트시트를 만든다. 200×100·144×144에서 읽히는지는 눈으로만 확인되므로, 헤드리스 Chrome으로 실제 픽셀 크기 래스터라이즈해서 본다.
+- **statusline 훅은 선택 설치**다([scripts/statusline-cache.mjs](c_ai_usage/scripts/statusline-cache.mjs)). 설치하면 코딩 중 API 호출이 0이 된다(tier 1). 설치 안 해도 직접 폴링(tier 2)으로 동작한다.
