@@ -8,6 +8,37 @@
       이미 무시하므로 보호된 설정 파일을 건드릴 필요도 없다.
     -->
     <script src="../vendor/sdpi-components.js"></script>
+    <style>
+      /*
+        sdpi-components 의 색 토큰은 각 컴포넌트의 :host 에만 선언돼 있어(--font-color 등)
+        컴포넌트 밖 요소는 상속받지 못한다. 그래서 도움말 블록은 같은 팔레트 값을 직접 쓴다.
+        기본 상속 색으로 두면 어두운 배경에서 거의 안 보인다.
+      */
+      body {
+        font-family: 'Segoe UI', Arial, Roboto, Helvetica, sans-serif;
+      }
+      .help {
+        margin: 10px 0 4px;
+        border-top: 1px solid #3d3d3d;
+        padding-top: 6px;
+      }
+      .help > summary {
+        color: #b4b4b4;
+        font-size: 11px;
+        cursor: pointer;
+        padding: 2px 0;
+        user-select: none;
+      }
+      .help p {
+        color: #c8c8c8;
+        font-size: 11px;
+        line-height: 1.65;
+        margin: 6px 2px 2px;
+      }
+      .help b {
+        color: #ececec;
+      }
+    </style>
   </head>
   <body>
     <sdpi-item label="차트">
@@ -34,33 +65,40 @@
 
     <!--
       갱신 주기는 전역이다 — 프로바이더 공유 자원이라 인스턴스마다 다르면 요청률이 곱해진다.
+      슬라이더(sdpi-range)를 쓰지 않는 이유: 현재값 표시 기능이 없어(min/max 만 보인다) 무엇으로
+      설정돼 있는지 알 수 없고, 폴링 간격에 초 단위 연속 자유도는 필요하지도 않다.
       value-type 기본값이 'string' 이므로 숫자 설정엔 반드시 명시한다.
-      하한 60 은 실측 근거가 있는 값이고, 그보다 짧게 열면 레이트리밋 사고를 재현할 수 있다.
     -->
     <sdpi-item label="갱신 주기">
-      <sdpi-range
+      <sdpi-select
         setting="pollIntervalSec"
         global
         value-type="number"
-        min="60"
-        max="3600"
-        step="60"
         default="300"
-        showlabels
-      ></sdpi-range>
+      >
+        <option value="60">1분</option>
+        <option value="180">3분</option>
+        <option value="300">5분 (권장)</option>
+        <option value="600">10분</option>
+        <option value="1800">30분</option>
+        <option value="3600">1시간</option>
+      </sdpi-select>
     </sdpi-item>
 
-    <!-- sdpi-item-group 은 v4.0.1 에 없다(커스텀 엘리먼트 등록 목록으로 확인). 평범한 마크업을 쓴다. -->
-    <details>
-      <summary style="font-size: 11px; margin: 8px">도움말</summary>
-      <p style="margin: 4px 8px; font-size: 11px; line-height: 1.5">
-        수치는 ChatGPT 계정에서 직접 읽어옵니다 — 기기별 로컬 기록이 아니라 계정 전체 사용량입니다.
-        이 기기에 Codex CLI 로그인이 필요합니다. "재로그인 필요" 가 보이면 codex 를 한 번
-        실행하세요.
+    <details class="help">
+      <summary>도움말</summary>
+      <p>
+        수치는 <b>ChatGPT 계정에서 직접</b> 읽어옵니다 — 기기별 로컬 기록이 아니라 계정 전체
+        사용량이므로 여러 기기에서 쓴 양이 합산됩니다.
       </p>
-      <p style="margin: 4px 8px; font-size: 11px; line-height: 1.5; color: #999">
-        OpenAI 가 2026-07-13 이후 주간 창만 반환하므로 <b>5HR 칸이 비어 있는 것이 정상</b>입니다. 빈
-        칸은 0% 가 아니라 "모름"으로 표시됩니다. 5시간 창이 돌아오면 자동으로 채워집니다.
+      <p>
+        이 기기에 <b>Codex CLI 로그인</b>이 필요합니다. <b>재로그인 필요</b>가 보이면 터미널에서
+        <b>codex</b> 를 한 번 실행하면 자동으로 복구됩니다.
+      </p>
+      <p>
+        OpenAI 가 2026-07-13 이후 주간 창만 반환하므로 <b>5H 칸이 비어 있는 것이 정상</b>입니다. 빈
+        칸(<b>—</b>)은 0% 가 아니라 <b>값을 모른다</b>는 뜻입니다. 5시간 창이 돌아오면 자동으로
+        채워집니다.
       </p>
     </details>
   </body>

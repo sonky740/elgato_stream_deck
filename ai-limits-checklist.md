@@ -67,8 +67,8 @@
 ### 기존 플러그인 정리 (§7 게이트 3)
 
 - [x] 삭제 **전에** `bin/` 참조 복사 + 추출 노트 → `~/Desktop/ai-limits-reference/` (`NOTES.md` 에 hot loop 메커니즘 · 키체인 execFile · 401/403 강등 · duration 버킷 · Codex 헤더 · `mostBindingWeekly` · 설정 기본값 전문)
-- [ ] `kr.co.postgresql.ai-limits` 삭제
-- [ ] `com.statuscheck.codex-usage` 삭제
+- [x] `kr.co.postgresql.ai-limits` 제거 — 되돌릴 수 있게 `~/Desktop/ai-limits-reference/removed-plugins/` 로 이동. 프로필 참조 0건이라 고아 타일이 남지 않는다
+- [x] `com.statuscheck.codex-usage` 제거 — 동일
 
 ---
 
@@ -150,6 +150,8 @@
 - [x] 액션별 `PropertyInspectorPath` + HTML — `ui/claude-usage.html`
 - [x] `sdpi-components` v4.0.1 을 **`vendor/` 아래로 로컬 vendor**(공식 릴리스 URL 에서 내려받음) (루트 eslint 가 `**/vendor/**`, .prettierignore 가 `**/vendor/` 를 이미 무시 → 보호된 설정 파일 안 건드림)
 - [x] `chart`(donut\|bar) · `basis`(used\|remaining) `sdpi-radio` — 기본값 `donut`+`used`(v1 동작과 동일)
+- [x] 갱신 주기는 `sdpi-select` 프리셋(1·3·5·10·30·60분) — `sdpi-range` 는 현재값 표시 기능이 없어 무엇으로 설정됐는지 알 수 없다
+- [x] 도움말 대비 수정 — sdpi 색 토큰이 컴포넌트 `:host` 에만 있어 밖의 요소가 상속받지 못한다. 같은 팔레트 값을 직접 지정하고 헤드리스 렌더로 대비 확인
 - [x] 설정 스코프 분리 — 인스턴스: chart·basis / 전역: 폴링 간격(60~3600s, 경계 clamp). 어느 weekly 는 most-binding 자동 선택이라 설정 불필요
 - [x] 토큰류를 **어느 설정에도** 두지 않음 — 키체인/`auth.json` 에서 읽으므로 담을 필요가 없다
 - [x] `getSecrets()` 사용 안 함 (읽기 전용 · Marketplace+DRM · deprecated)
