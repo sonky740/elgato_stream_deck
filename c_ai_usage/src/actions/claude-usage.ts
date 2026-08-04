@@ -73,7 +73,11 @@ export class ClaudeUsageAction extends SingletonAction {
   }
 
   async #render(action: GaugeAction, vm: UsageViewModel): Promise<void> {
-    const svg = renderGauge(vm, { ...V1_CHART, surface: action.isDial() ? 'dial' : 'key' });
+    const svg = renderGauge(
+      vm,
+      { ...V1_CHART, surface: action.isDial() ? 'dial' : 'key' },
+      Date.now(),
+    );
     if (this.#lastSvg.get(action.id) === svg) {
       return;
     }

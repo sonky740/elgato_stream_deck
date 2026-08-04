@@ -172,7 +172,7 @@ User-Agent: c-ai-usage/<version>
 파싱 규칙:
 
 - **CLI 의 zod 스키마(6 슬롯)·allowlist(8키)는 wire 보다 뒤처져 있다.** 파싱 계약으로 쓰지 않는다. window 모양 슬롯을 **열거하지 말고 순회**한다 — 코드네임 슬롯이 계속 추가된다.
-- `limits[]` 는 **구조**용으로만 읽는다(kind/group/scope/severity). **수치와 `resets_at` 은 window 객체에서 가져온다** — `limits[].percent` 는 int(`12`)인데 `utilization` 은 float(`12.0`)이고, `weekly_scoped.resets_at` 은 null 인데 window 객체는 타임스탬프를 갖는다.
+- **`limits[]` 를 아예 쓰지 않는다** (구현 결과로 확정, 초안에서 변경). 초안은 "구조용으로만 읽고 수치는 창 객체에서" 였지만, 그렇게 하면 두 소스를 맞추는 코드만 늘고 얻는 게 없다 — 필요한 정보(창 길이·utilization·resets_at)가 전부 창 객체에 있다. `limits[]` 를 참조하면 잃는 것: `percent` 는 int(`12`)라 `utilization` 의 float(`12.0`) 해상도가 깎이고, `weekly_scoped.resets_at` 은 null 인데 창 객체는 타임스탬프를 갖는다.
 - **`is_active` 로 렌더를 게이팅하지 않는다.** 실측: 5시간 창(`session`, 12% 사용)이 `is_active: false`, `weekly_all` 이 `true`. "active 만 그린다" 규칙은 사용자가 가장 보고 싶은 숫자를 숨긴다. 의미가 확정될 때까지 쓰지 않는다.
 - 모델 스코프 창의 라벨은 `scope.model.display_name` 을 **서버가 준 대로** 쓴다. 이 계정의 값은 Opus 도 Sonnet 도 아닌 `"Fable"` 이다. 하드코딩 금지.
 - 돈 표현이 **3종**이다: `extra_usage`(`monthly_limit`/`used_credits`/`currency`/`decimal_places`), `spend.used`(minor units — `amount_minor / 10^exponent`), Codex `credits.balance`(**문자열** `"0"`). v1 은 셋 다 안 쓴다.

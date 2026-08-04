@@ -43,6 +43,8 @@ const MESSAGE: Record<Exclude<SourceState, 'ok' | 'stale'>, string> = {
 
 /**
  * 뷰모델 하나를 SVG 문자열로 그린다. 순수 함수다 — 픽스처만으로 전 상태를 검증할 수 있다.
+ * `nowMs` 를 인자로 받는 이유가 그것이다: stale 나이 표시가 `Date.now()` 를 직접 부르면
+ * 같은 입력이 호출 시점마다 다른 SVG 를 내 스냅샷도 프리뷰도 결정적이지 않게 된다.
  *
  * 캔버스 전체를 매번 다시 그린다. 그래서 슬롯이 비어도, 차트 종류가 바뀌어도 레이아웃 item 을
  * 조건부로 만들 필요가 없다(layout item 의 type/key/rect 는 런타임 변경 불가).
@@ -50,7 +52,7 @@ const MESSAGE: Record<Exclude<SourceState, 'ok' | 'stale'>, string> = {
  * 도넛 호는 `stroke-dasharray` 가 아니라 arc path(`A` 명령)로 그린다 — dasharray 보다
  * 훨씬 기본적인 기능이라 래스터라이저 호환 리스크가 낮다.
  */
-export function renderGauge(vm: UsageViewModel, opts: RenderOptions): string {
+export function renderGauge(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
   const { w, h } = CANVAS[opts.surface];
   const body =
     vm.state === 'ok' || vm.state === 'stale'
@@ -62,7 +64,7 @@ export function renderGauge(vm: UsageViewModel, opts: RenderOptions): string {
     opts.surface === 'key'
       ? `<rect x="0" y="0" width="${w}" height="${h}" rx="16" fill="${BG}"/>`
       : `<rect x="0" y="0" width="${w}" height="${h}" fill="${BG}"/>`,
-    header(vm, opts),
+    header(vm, opts, nowMs),
     body,
     '</svg>',
   ].join('');
@@ -87,10 +89,9 @@ function renderSlots(vm: UsageViewModel, opts: RenderOptions): string {
 
 /* ── 헤더 ─────────────────────────────────────────────────────────── */
 
-function header(vm: UsageViewModel, opts: RenderOptions): string {
+function header(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
   const name = vm.provider === 'claude' ? 'CLAUDE' : 'CODEX';
-  const note =
-    vm.state === 'stale' && vm.fetchedAtMs !== null ? age(Date.now() - vm.fetchedAtMs) : '';
+  const note = vm.state === 'stale' && vm.fetchedAtMs !== null ? age(nowMs - vm.fetchedAtMs) : '';
   if (opts.surface === 'dial') {
     return (
       text(10, 13, name, { size: 9, fill: MUTED, weight: 600, spacing: 1.2 }) +

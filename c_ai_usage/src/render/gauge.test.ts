@@ -27,7 +27,7 @@ describe('renderGauge', () => {
   it('네 조합 모두 캔버스 규격에 맞는 SVG 를 낸다', () => {
     for (const surface of ['dial', 'key'] as Surface[]) {
       for (const chart of ['donut', 'bar'] as ChartType[]) {
-        const svg = renderGauge(vm(), { surface, chart, basis: 'used' });
+        const svg = renderGauge(vm(), { surface, chart, basis: 'used' }, FIXED_NOW);
         const size = surface === 'dial' ? 'width="200" height="100"' : 'width="144" height="144"';
         expect(svg).toContain(size);
         expect(svg.startsWith('<svg')).toBe(true);
@@ -38,50 +38,62 @@ describe('renderGauge', () => {
 
   it('stroke-dasharray 를 쓰지 않는다 — 래스터라이저 호환 리스크가 가장 큰 기능이다', () => {
     for (const surface of ['dial', 'key'] as Surface[]) {
-      expect(renderGauge(vm(), { surface, chart: 'donut', basis: 'used' })).not.toContain(
-        'dasharray',
-      );
+      expect(
+        renderGauge(vm(), { surface, chart: 'donut', basis: 'used' }, FIXED_NOW),
+      ).not.toContain('dasharray');
     }
   });
 
   it('dominant-baseline 을 쓰지 않는다 — 세로 정렬을 좌표로 잡는다', () => {
-    expect(renderGauge(vm(), { surface: 'key', chart: 'donut', basis: 'used' })).not.toContain(
-      'dominant-baseline',
-    );
+    expect(
+      renderGauge(vm(), { surface: 'key', chart: 'donut', basis: 'used' }, FIXED_NOW),
+    ).not.toContain('dominant-baseline');
   });
 
   it('빈 슬롯은 트랙만 그리고 값에 — 를 쓴다 (0% 아님)', () => {
-    const svg = renderGauge(vm({ slots: { fiveHour: null, week: win('WK', 604800, 31) } }), {
-      surface: 'dial',
-      chart: 'donut',
-      basis: 'used',
-    });
+    const svg = renderGauge(
+      vm({ slots: { fiveHour: null, week: win('WK', 604800, 31) } }),
+      {
+        surface: 'dial',
+        chart: 'donut',
+        basis: 'used',
+      },
+      FIXED_NOW,
+    );
     expect(svg).toContain('—');
     expect(svg).not.toContain('0%');
   });
 
   it('utilization null 에 remaining 을 적용하지 않는다 — 100% 남음은 정반대 오표시다', () => {
-    const svg = renderGauge(vm({ slots: { fiveHour: win('5H', 18000, null), week: null } }), {
-      surface: 'dial',
-      chart: 'bar',
-      basis: 'remaining',
-    });
+    const svg = renderGauge(
+      vm({ slots: { fiveHour: win('5H', 18000, null), week: null } }),
+      {
+        surface: 'dial',
+        chart: 'bar',
+        basis: 'remaining',
+      },
+      FIXED_NOW,
+    );
     expect(svg).not.toContain('100%');
     expect(svg).toContain('—');
   });
 
   it('remaining 은 100 에서 뺀 값을 쓴다', () => {
-    const svg = renderGauge(vm(), { surface: 'dial', chart: 'bar', basis: 'remaining' });
+    const svg = renderGauge(vm(), { surface: 'dial', chart: 'bar', basis: 'remaining' }, FIXED_NOW);
     expect(svg).toContain('63%'); // 100 - 37
     expect(svg).toContain('74%'); // 100 - 26
   });
 
   it('100% 는 호가 아니라 완전한 원으로 그린다 — A 명령은 360°를 표현할 수 없다', () => {
-    const svg = renderGauge(vm({ slots: { fiveHour: win('5H', 18000, 100), week: null } }), {
-      surface: 'dial',
-      chart: 'donut',
-      basis: 'used',
-    });
+    const svg = renderGauge(
+      vm({ slots: { fiveHour: win('5H', 18000, 100), week: null } }),
+      {
+        surface: 'dial',
+        chart: 'donut',
+        basis: 'used',
+      },
+      FIXED_NOW,
+    );
     // 트랙 원 + 채움 원, 그리고 5H 자리에 path 가 없다.
     expect(svg.match(/<circle/g)?.length).toBeGreaterThanOrEqual(3);
   });
@@ -100,32 +112,40 @@ describe('renderGauge', () => {
       'shape-changed',
     ];
     const rendered = states.map((state) =>
-      renderGauge(vm({ state }), { surface: 'dial', chart: 'donut', basis: 'used' }),
+      renderGauge(vm({ state }), { surface: 'dial', chart: 'donut', basis: 'used' }, FIXED_NOW),
     );
     expect(new Set(rendered).size).toBe(states.length);
   });
 
   it('stale 은 게이지를 유지하고 나이를 덧붙인다', () => {
-    const svg = renderGauge(vm({ state: 'stale', fetchedAtMs: Date.now() - 8 * 60_000 }), {
-      surface: 'dial',
-      chart: 'donut',
-      basis: 'used',
-    });
+    const svg = renderGauge(
+      vm({ state: 'stale', fetchedAtMs: FIXED_NOW - 8 * 60_000 }),
+      { surface: 'dial', chart: 'donut', basis: 'used' },
+      FIXED_NOW,
+    );
     expect(svg).toContain('37%');
     expect(svg).toContain('8분 전');
   });
 
   it('프로바이더별로 accent 색이 다르다', () => {
-    const claude = renderGauge(vm({ provider: 'claude' }), {
-      surface: 'dial',
-      chart: 'bar',
-      basis: 'used',
-    });
-    const codex = renderGauge(vm({ provider: 'codex' }), {
-      surface: 'dial',
-      chart: 'bar',
-      basis: 'used',
-    });
+    const claude = renderGauge(
+      vm({ provider: 'claude' }),
+      {
+        surface: 'dial',
+        chart: 'bar',
+        basis: 'used',
+      },
+      FIXED_NOW,
+    );
+    const codex = renderGauge(
+      vm({ provider: 'codex' }),
+      {
+        surface: 'dial',
+        chart: 'bar',
+        basis: 'used',
+      },
+      FIXED_NOW,
+    );
     expect(claude).toContain('#d97757');
     expect(codex).toContain('#10a37f');
     expect(claude).toContain('CLAUDE');
@@ -133,21 +153,29 @@ describe('renderGauge', () => {
   });
 
   it('라벨의 XML 특수문자를 이스케이프한다 — 라벨은 서버가 주는 문자열이다', () => {
-    const svg = renderGauge(vm({ slots: { fiveHour: win('A<B&C', 18000, 5), week: null } }), {
-      surface: 'dial',
-      chart: 'bar',
-      basis: 'used',
-    });
+    const svg = renderGauge(
+      vm({ slots: { fiveHour: win('A<B&C', 18000, 5), week: null } }),
+      {
+        surface: 'dial',
+        chart: 'bar',
+        basis: 'used',
+      },
+      FIXED_NOW,
+    );
     expect(svg).toContain('A&lt;B&amp;C');
     expect(svg).not.toContain('A<B&C');
   });
 
   it('두 슬롯이 다 비면 데이터 없음을 그린다', () => {
-    const svg = renderGauge(vm({ slots: { fiveHour: null, week: null } }), {
-      surface: 'dial',
-      chart: 'donut',
-      basis: 'used',
-    });
+    const svg = renderGauge(
+      vm({ slots: { fiveHour: null, week: null } }),
+      {
+        surface: 'dial',
+        chart: 'donut',
+        basis: 'used',
+      },
+      FIXED_NOW,
+    );
     expect(svg).toContain('데이터 없음');
   });
 });
@@ -178,7 +206,7 @@ describe('preview', () => {
         name: 'unknown-value',
         vm: vm({ slots: { fiveHour: win('5H', 18000, null), week: win('WK', 604800, 26) } }),
       },
-      { name: 'stale', vm: vm({ state: 'stale', fetchedAtMs: Date.now() - 23 * 60_000 }) },
+      { name: 'stale', vm: vm({ state: 'stale', fetchedAtMs: FIXED_NOW - 23 * 60_000 }) },
       {
         name: 'no-credential',
         vm: vm({ state: 'no-credential', slots: { fiveHour: null, week: null } }),
@@ -195,7 +223,7 @@ describe('preview', () => {
       for (const chart of ['donut', 'bar'] as ChartType[]) {
         for (const basis of ['used', 'remaining'] as Basis[]) {
           const cells = cases.map((c) => {
-            const svg = renderGauge(c.vm, { surface, chart, basis });
+            const svg = renderGauge(c.vm, { surface, chart, basis }, FIXED_NOW);
             writeFileSync(
               path.join(PREVIEW_DIR, `${surface}-${chart}-${basis}-${c.name}.svg`),
               svg,
