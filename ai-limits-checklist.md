@@ -40,7 +40,8 @@
   - [x] `charset=utf8` data URI 시각 확인. 96회 전송 실패 0건
   - [x] 도넛 설계 유지 확정 — 네이티브 `bar`/`gbar` 폴백 불필요, `MESSAGE` 표 한글 유지
   - [x] 프로브 해제 + 실제 게이지 end-to-end — 로그 `claude usage: loading → ok (5H 69% / WK 30%)`
-  - [ ] **raw SVG 다이얼 표시 최종 확인** — 출하 경로가 raw 인데 시각 확인된 건 `charset=utf8` 이다. 비어 보이면 `encodeSvg()` 한 줄 교체
+  - [x] 인코딩 판정 — **raw `<svg>` 문자열은 pixmap 에서 안 그려진다**(빈 화면, 전송 오류 없음). Elgato 스키마 설명과 실제가 불일치. `encodeSvg()` 를 base64 data URI 로 교체
+  - [ ] **base64 data URI 다이얼 표시 확인** — 스키마 워크드 예시 형식. 비어 보이면 `charset=utf8`(이 기기에서 확인됨, 미문서화)로 대체
   - [ ] ~~키에서 `setImage` 로 반복~~ → 매니페스트가 `Controllers: ["Encoder"]` 뿐이라 지금 불가. Phase 4 로 이월
 - [x] `npm run watch -w c-ai-usage` 대신 `streamdeck restart` 로 실기기 반영 확인 (프로브 4회·게이지 1회)
 
