@@ -279,7 +279,9 @@ function keyBar(p: Slot, s: Slot, c: Ctx): string {
     text(130, 36, fmt(p.leftMs), { size: 10, fill: DIM, anchor: 'end' }),
     text(14, 72, pct(p.v), { size: 32, fill: numColor(p.v, c), weight: 700 }),
     segments(14, 80, 116, 10, p.v, gaugeColor(p.v, c)),
-    `<line x1="14" y1="100" x2="130" y2="100" stroke="${RULE}" stroke-width="1"/>`,
+    // 1px 채움 rect 다. `<line>` 이 더 자연스럽지만 이 래스터라이저에서 확인된 적이 없다 —
+    // 여기서 미확인 요소가 조용히 안 그려지면 구분선 하나가 사라지고 아무 신호도 없다.
+    `<rect x="14" y="99.5" width="116" height="1" fill="${RULE}"/>`,
     // 조역 행은 좁아 서버 라벨이 아니라 짧은 코드를 쓴다. 스코프명은 다이얼에서 보여준다.
     text(14, 118, s.code, { size: 10, fill: MUTED, weight: 600, spacing: 0.6 }),
     text(130, 118, s.v === null && s.note !== null ? s.note : fmt(s.leftMs), {

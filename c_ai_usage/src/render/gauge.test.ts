@@ -122,6 +122,35 @@ describe('renderGauge', () => {
     expect([...colors].filter((c) => c !== 'none' && !/^#[0-9a-f]{6}$/i.test(c))).toEqual([]);
   });
 
+  /**
+   * 실기기에서 그려지는 것이 확인된 요소만 쓴다. 이 래스터라이저는 지원 범위가 문서화돼
+   * 있지 않고 미지원을 **조용히 무시**한다(raw SVG 문자열·8자리 hex 가 그랬다) — 새 요소를
+   * 넣으면 그것 하나만 빠진 화면이 되고 로그에는 아무것도 남지 않는다.
+   *
+   * 늘리려면 먼저 `render/probe.ts` 로 실기기에서 확인한 뒤 여기에 추가한다.
+   */
+  it('실기기에서 확인된 SVG 요소만 쓴다', () => {
+    const proven = new Set(['svg', 'rect', 'circle', 'path', 'text']);
+    const used = new Set<string>();
+    for (const state of ['ok', 'blocked'] as SourceState[]) {
+      for (const [five, week] of RISK_PAIRS) {
+        for (const surface of ['dial', 'key'] as Surface[]) {
+          for (const chart of ['donut', 'bar'] as ChartType[]) {
+            const svg = renderGauge(
+              vm({ state, slots: slots(five, week) }),
+              { surface, chart, basis: 'used' },
+              FIXED_NOW,
+            );
+            for (const [, tag] of svg.matchAll(/<([a-z]+)/g)) {
+              used.add(tag ?? '');
+            }
+          }
+        }
+      }
+    }
+    expect([...used].filter((t) => !proven.has(t))).toEqual([]);
+  });
+
   it('dominant-baseline 을 쓰지 않는다 — 세로 정렬을 좌표로 잡는다', () => {
     expect(
       renderGauge(vm(), { surface: 'key', chart: 'donut', basis: 'used' }, FIXED_NOW),
