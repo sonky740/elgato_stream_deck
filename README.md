@@ -4,10 +4,28 @@
 
 ## 플러그인
 
-| 워크스페이스                          | 하는 일                                                       | 상태                             |
-| ------------------------------------- | ------------------------------------------------------------- | -------------------------------- |
-| [media_controller](media_controller/) | OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어)     | macOS 검증 완료 / Windows 미검증 |
-| [c_ai_usage](c_ai_usage/)             | Claude · Codex 구독 사용량 한도를 5시간·주간 두 게이지로 표시 | macOS 검증 완료 / Windows 미검증 |
+그림은 둘 다 **터치스트립(200×100)** 이다. 어두운 배경은 스트림덱 프로필 배경이고, 두 플러그인 모두 캔버스를 칠하지 않는다.
+
+<table>
+  <tr>
+    <td><img src="media_controller/docs/dial.png" width="200" alt="media_controller 터치스트립 — 앨범아트 + 곡 제목 · 아티스트 · 앨범 3단" /></td>
+    <td>
+      <b><a href="media_controller/">media_controller</a></b><br />
+      OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어)<br />
+      <sub>macOS 검증 완료 / Windows 미검증</sub>
+    </td>
+  </tr>
+  <tr>
+    <td><img src="c_ai_usage/docs/dial-donut.png" width="200" alt="c_ai_usage 터치스트립 — 5시간 창 37% 와 주간 창 26% 도넛 2개" /></td>
+    <td>
+      <b><a href="c_ai_usage/">c_ai_usage</a></b><br />
+      Claude · Codex 구독 사용량 한도를 5시간·주간 두 게이지로 표시<br />
+      <sub>macOS 검증 완료 / Windows 미검증</sub>
+    </td>
+  </tr>
+</table>
+
+c_ai_usage 그림은 플러그인이 실제로 만드는 SVG 를 구운 것이다. **media_controller 그림은 재구성이다** — 그 플러그인은 값만 보내고 그리는 건 기기의 레이아웃 렌더러라 뽑아낼 산출물이 없어, [레이아웃 정의](media_controller/com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 rect·폰트·색으로 다시 그렸다(곡 정보는 자리표시 문자열).
 
 설치·사용·플랫폼별 준비물은 각 플러그인 README 에 있다 — [media_controller/README.md](media_controller/README.md) · [c_ai_usage/README.md](c_ai_usage/README.md).
 

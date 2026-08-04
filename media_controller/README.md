@@ -2,6 +2,14 @@
 
 **OS 미디어 세션**으로 현재 재생 중인 곡을 Stream Deck + 에 표시하고 제어한다. 특정 앱에 묶이지 않으므로 YouTube Music(브라우저 PWA 포함)을 비롯한 모든 플레이어가 대상이다.
 
+## 이렇게 보인다
+
+<img src="docs/dial.png" width="200" alt="터치스트립 — 앨범아트 + 곡 제목 · 아티스트 · 앨범 3단" />
+
+터치스트립(200×100)에 앨범아트 + 곡 제목 · 아티스트 · 앨범이 3단으로 들어간다. 키에서는 앨범아트가 키 이미지, 곡 제목이 타이틀이 된다. 어두운 배경은 스트림덱 프로필 배경이다 — 레이아웃에 배경 item 이 없다.
+
+⚠ **이 그림은 실기기 캡처가 아니라 재구성이다.** 이 플러그인은 `setFeedback` 으로 값만 보내고 그리는 건 기기의 레이아웃 렌더러라 뽑아낼 렌더 산출물이 없다. [레이아웃 정의](com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 rect · 폰트 크기 · 굵기 · 색을 그대로 읽어 다시 그린 것이고, 기기의 폰트 패밀리와 안티에일리어싱은 재현되지 않는다. 곡 정보는 자리표시 문자열이다.
+
 ## 요구사항
 
 |                |                                                         |
@@ -101,7 +109,10 @@ npm run watch -w media-controller   # 변경 감지 빌드 + 저장 시 자동 s
 ```bash
 npx streamdeck validate com.sonky.media-controller.sdPlugin
 npx streamdeck restart com.sonky.media-controller
+node scripts/build-readme-shots.mjs   # 위 README 그림 재생성 (헤드리스 Chrome)
 ```
+
+**레이아웃을 고치면 그림도 다시 굽는다** — `docs/dial.png` 는 커밋된 생성물이고 낡아도 아무 신호가 없다. 스크립트가 레이아웃 JSON 을 읽으므로 좌표를 따로 맞출 필요는 없다.
 
 타입체크는 별도 스크립트 없이 `npm run build`(rollup 의 `@rollup/plugin-typescript`)가 겸한다.
 
