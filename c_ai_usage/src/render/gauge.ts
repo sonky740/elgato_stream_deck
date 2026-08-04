@@ -15,7 +15,6 @@ const CANVAS: Record<Surface, { w: number; h: number }> = {
   key: { w: 144, h: 144 },
 };
 
-const BG = '#16181c';
 const TRACK = '#32363e';
 const TEXT = '#f4f4f5';
 const MUTED = '#868d98';
@@ -30,7 +29,9 @@ const CRIT = '#dc2626';
 const CRIT_TEXT = '#fca5a5';
 
 /**
- * 조역 게이지용 흐린 accent. accent 를 BG 위에 54.9% 로 섞어 **미리 계산해 둔 6자리 hex** 다.
+ * 조역 게이지용 흐린 accent. accent 를 `#16181c` 위에 54.9% 로 섞어 **미리 계산해 둔
+ * 6자리 hex** 다. 이 캔버스는 배경을 칠하지 않으므로 `#16181c` 는 **가정**이다 — 밝은 프로필
+ * 배경에서는 이 색과 {@link RULE}·{@link TEXT} 가 전부 배경에 묻힌다.
  *
  * ⚠ 여기에 8자리 hex(`#RRGGBBAA`)를 쓰면 안 된다 — 실기기에서 그려지지 않는다(2026-08-04).
  * 색이 적용되지 않아 링은 채움이 사라지고 텍스트는 검정이 되어 배경에 묻힌다. 전송 오류도
@@ -110,6 +111,9 @@ type Ctx = { basis: Basis; provider: Provider };
  * 도넛 호는 `stroke-dasharray` 가 아니라 arc path(`A` 명령)로 그린다 — dasharray 보다
  * 훨씬 기본적인 기능이라 래스터라이저 호환 리스크가 낮다.
  *
+ * ⚠ **캔버스를 칠하지 않는다** — 스트림덱 프로필 배경이 그대로 비친다. 대신 어두운 배경이
+ * 코드 밖의 **가정**이 됐다({@link ACCENT_DIM} 참고).
+ *
  * ⚠ 남은 시간은 렌더 시점 기준으로 굳는다. 다시 그리는 계기는 폴링뿐이므로 표시된
  * 카운트다운은 최대 폴링 간격만큼 낡을 수 있다(SPEC §19).
  */
@@ -117,7 +121,6 @@ export function renderGauge(vm: UsageViewModel, opts: RenderOptions, nowMs: numb
   const { w, h } = CANVAS[opts.surface];
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
-    plate(w, h, opts.surface === 'key' ? 16 : 0),
     header(vm, opts, nowMs),
     body(vm, opts, nowMs),
     '</svg>',
@@ -199,84 +202,95 @@ function header(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string 
 /* ── 도넛 (디자인 1b) ─────────────────────────────────────────────── */
 
 /**
- * 헤어라인 링 + 초대형 숫자. 링을 5px 로 얇게 밀어내 중앙 여백을 최대로 벌리고 주역
- * 퍼센트를 38px 로 세운다 — 팔 길이에서 읽히는 건 결국 숫자 하나다.
+ * 헤어라인 링 + 대형 숫자. 링을 5px 로 얇게 밀어내고 반지름을 50/40 으로 당겨, 중앙 글자
+ * 상자가 네 귀퉁이까지 안쪽 링에서 떨어지는 크기(27px, 4자리는 21px)로 세운다.
  *
- * 조역은 링을 끊고 앉는 하단 chip 이라 폭 제약 없이 "퍼센트 · 남은 시간"을 같이 쓴다.
+ * 조역은 링 아래 빈 줄을 통째로 쓴다 — 없앤 chip 자리다. chip 은 배경색으로 링을 가려
+ * 성립했으므로 캔버스를 칠하지 않는 지금은 투명 배경 위의 검은 상자가 된다.
  */
 function keyDonut(p: Slot, s: Slot, c: Ctx): string {
   const big = pct(p.v);
   return [
-    ring(72, 78, 60, 5, p.v, gaugeColor(p.v, c)),
-    ring(72, 78, 50, 5, s.v, softColor(s.v, c)),
-    text(72, 50, clampLabel(p.label, 66, 10, 0.6), {
-      size: 10,
+    ring(72, 70, 50, 5, p.v, gaugeColor(p.v, c)),
+    ring(72, 70, 40, 5, s.v, softColor(s.v, c)),
+    // 링 안쪽에서 가장 좁은 지점은 베이스라인이 아니라 글자 상자 위쪽이라 예산이 42px(6글자)
+    // 뿐이다. 서버 스코프명을 넣으면 `5H Oa…` 같은 무의미한 잘림이 되므로 keyBar 조역 행과
+    // 같이 짧은 코드를 쓴다 — 스코프명은 다이얼에서 보여준다.
+    text(72, 46, p.code, { size: 10, fill: MUTED, anchor: 'middle', spacing: 0.6 }),
+    text(72, 78, big, {
+      size: big.length >= 4 ? 21 : 27,
+      fill: numColor(p.v, c),
+      weight: 700,
+      anchor: 'middle',
+    }),
+    // y=94 는 13px 이 링 안에 들어가는 가장 아래다 — 더 내리면 원이 좁아져 7글자가 링에 닿는다.
+    text(72, 94, fmt(p.leftMs), { size: 13, fill: MUTED, anchor: 'middle' }),
+    text(14, 138, s.code, { size: 10, fill: MUTED, spacing: 0.6 }),
+    s.v === null
+      ? text(130, 138, s.note ?? '—', {
+          size: 11,
+          fill: subColor(s.v, c),
+          weight: 600,
+          anchor: 'end',
+        })
+      : text(40, 139, pct(s.v), { size: 15, fill: subColor(s.v, c), weight: 700 }) +
+        text(130, 138, fmt(s.leftMs), { size: 11, fill: DIM, anchor: 'end' }),
+  ].join('');
+}
+
+/**
+ * 폭이 남는 다이얼에서는 두 창을 같은 크기 셀로 나란히 둔다 — 주간을 작은 링에 몰아넣던
+ * 위계가 "주간이 안 보인다"의 원인이었다.
+ *
+ * 셀 크기가 같으므로 승격은 **자리 이동이 아니라 강조의 이동**이다(디자인 원안은 강조까지
+ * 5H 에 고정한다 — 그러면 Codex 는 유일하게 아는 값이 흐린 색으로 그려진다). 자리를 고정하는
+ * 이유는 5H 가 폴링 사이에 사라지면 두 셀이 맞바뀌어 눈이 매번 다시 찾아야 하기 때문이다.
+ */
+function dialDonut(p: Slot, s: Slot, c: Ctx): string {
+  const [left, right] = p.code === '5H' ? [p, s] : [s, p];
+  return donutCell(52, left, left === p, c) + donutCell(148, right, right === p, c);
+}
+
+function donutCell(cx: number, w: Slot, primary: boolean, c: Ctx): string {
+  const big = pct(w.v);
+  return [
+    ring(cx, 48, 26, 5, w.v, primary ? gaugeColor(w.v, c) : softColor(w.v, c)),
+    text(cx, 54, big, {
+      size: big.length >= 4 ? 12 : 16,
+      fill: primary ? numColor(w.v, c) : subColor(w.v, c),
+      weight: 700,
+      anchor: 'middle',
+    }),
+    text(cx, 86, clampLabel(w.label, 84, 9, 0.6), {
+      size: 9,
       fill: MUTED,
       anchor: 'middle',
       spacing: 0.6,
     }),
-    text(72, 88, big, {
-      size: big.length >= 4 ? 32 : 38,
-      fill: numColor(p.v, c),
-      weight: 700,
-      anchor: 'middle',
-    }),
-    text(72, 105, fmt(p.leftMs), { size: 11, fill: MUTED, anchor: 'middle' }),
-    // BG 로 채운 chip 이 링을 가린다 — 링보다 뒤에 그려야 "끊고 앉은" 모양이 된다.
-    `<rect x="18" y="112" width="108" height="24" rx="12" fill="${BG}" stroke="${RULE}" stroke-width="1"/>`,
-    text(28, 128, s.code, { size: 10, fill: MUTED, spacing: 0.6 }),
-    text(116, 128, s.v === null ? (s.note ?? '—') : `${pct(s.v)} · ${fmt(s.leftMs)}`, {
+    text(cx, 98, w.v === null && w.note !== null ? w.note : fmt(w.leftMs), {
       size: 11,
-      fill: subColor(s.v, c),
-      weight: 600,
-      anchor: 'end',
-    }),
-  ].join('');
-}
-
-function dialDonut(p: Slot, s: Slot, c: Ctx): string {
-  const big = pct(p.v);
-  return [
-    ring(44, 56, 32, 5, p.v, gaugeColor(p.v, c)),
-    text(44, 63, big, {
-      size: big.length >= 4 ? 18 : 22,
-      fill: numColor(p.v, c),
-      weight: 700,
+      fill: DIM,
       anchor: 'middle',
     }),
-    text(84, 50, clampLabel(p.label, 40, 10, 0.6), { size: 10, fill: MUTED, spacing: 0.6 }),
-    text(84, 67, fmt(p.leftMs), { size: 12, fill: SUB, weight: 600 }),
-    ring(150, 54, 22, 4, s.v, softColor(s.v, c)),
-    text(150, 59, pct(s.v), {
-      size: 14,
-      fill: subColor(s.v, c),
-      weight: 700,
-      anchor: 'middle',
-    }),
-    text(
-      150,
-      92,
-      s.v === null && s.note !== null ? s.note : `${clampLabel(s.label, 60, 9)} · ${fmt(s.leftMs)}`,
-      { size: 9, fill: DIM, anchor: 'middle' },
-    ),
   ].join('');
 }
 
 /* ── 세그먼트 미터 (디자인 1d) ────────────────────────────────────── */
 
 /**
- * 주역 32px / 조역 16px 로 위계를 확실히 둔다. 연속 바를 10칸으로 끊은 이유는
+ * 주역 32px / 조역 19px 로 위계를 확실히 둔다. 연속 바를 10칸으로 끊은 이유는
  * {@link segments} 에 있다.
  */
 function keyBar(p: Slot, s: Slot, c: Ctx): string {
   return [
-    text(14, 36, clampLabel(p.label, 68, 10, 0.6), {
+    // 12px 로 커진 남은 시간이 x=78 까지 밀려온다 — 라벨 예산이 그만큼 줄었다.
+    text(14, 36, clampLabel(p.label, 60, 10, 0.6), {
       size: 10,
       fill: MUTED,
       weight: 600,
       spacing: 0.6,
     }),
-    text(130, 36, fmt(p.leftMs), { size: 10, fill: DIM, anchor: 'end' }),
+    text(130, 36, fmt(p.leftMs), { size: 12, fill: DIM, anchor: 'end' }),
     text(14, 72, pct(p.v), { size: 32, fill: numColor(p.v, c), weight: 700 }),
     segments(14, 80, 116, 10, p.v, gaugeColor(p.v, c)),
     // 1px 채움 rect 다. `<line>` 이 더 자연스럽지만 이 래스터라이저에서 확인된 적이 없다 —
@@ -285,17 +299,18 @@ function keyBar(p: Slot, s: Slot, c: Ctx): string {
     // 조역 행은 좁아 서버 라벨이 아니라 짧은 코드를 쓴다. 스코프명은 다이얼에서 보여준다.
     text(14, 118, s.code, { size: 10, fill: MUTED, weight: 600, spacing: 0.6 }),
     text(130, 118, s.v === null && s.note !== null ? s.note : fmt(s.leftMs), {
-      size: 10,
+      size: 12,
       fill: DIM,
       anchor: 'end',
     }),
-    text(14, 134, pct(s.v), { size: 16, fill: subColor(s.v, c), weight: 700 }),
-    // 미터 시작점은 `100%` 폭(≈41px)이 결정한다 — 58 에 두면 세 자리에서 숫자에 붙는다.
-    segments(64, 127, 66, 8, s.v, softColor(s.v, c)),
+    text(14, 135, pct(s.v), { size: 19, fill: subColor(s.v, c), weight: 700 }),
+    // 미터 시작점은 `100%` 폭(19px 에서 ≈49px)이 결정한다 — 64 에 두면 네 자리에서 숫자에 붙는다.
+    segments(68, 128, 62, 8, s.v, softColor(s.v, c)),
   ].join('');
 }
 
 function dialBar(p: Slot, s: Slot, c: Ctx): string {
+  const note = s.v === null ? s.note : null;
   return [
     text(10, 39, clampLabel(p.label, 48, 10, 0.6), {
       size: 10,
@@ -303,7 +318,7 @@ function dialBar(p: Slot, s: Slot, c: Ctx): string {
       weight: 600,
       spacing: 0.6,
     }),
-    text(10, 53, fmt(p.leftMs), { size: 9, fill: DIM }),
+    text(10, 54, fmt(p.leftMs), { size: 11, fill: DIM }),
     segments(62, 34, 66, 15, p.v, gaugeColor(p.v, c)),
     text(190, 49, pct(p.v), { size: 21, fill: numColor(p.v, c), weight: 700, anchor: 'end' }),
     text(10, 76, clampLabel(s.label, 48, 10, 0.6), {
@@ -312,12 +327,10 @@ function dialBar(p: Slot, s: Slot, c: Ctx): string {
       weight: 600,
       spacing: 0.6,
     }),
-    text(10, 90, s.v === null && s.note !== null ? s.note : fmt(s.leftMs), {
-      size: 9,
-      fill: DIM,
-    }),
+    // 노트만 9px 로 남긴다 — 문장이라 11px 로 키우면 x=62 의 세그먼트 미터 아래로 흘러든다.
+    text(10, 91, note ?? fmt(s.leftMs), { size: note === null ? 11 : 9, fill: DIM }),
     segments(62, 72, 66, 10, s.v, softColor(s.v, c)),
-    text(190, 86, pct(s.v), { size: 14, fill: subColor(s.v, c), weight: 700, anchor: 'end' }),
+    text(190, 87, pct(s.v), { size: 17, fill: subColor(s.v, c), weight: 700, anchor: 'end' }),
   ].join('');
 }
 
@@ -382,11 +395,6 @@ function subColor(v: number | null, c: Ctx): string {
 }
 
 /* ── 조각 ─────────────────────────────────────────────────────────── */
-
-function plate(w: number, h: number, rx: number): string {
-  const radius = rx === 0 ? '' : ` rx="${rx}"`;
-  return `<rect x="0" y="0" width="${w}" height="${h}"${radius} fill="${BG}"/>`;
-}
 
 /** 트랙 + 채움 링. 값이 `null`(모름)이면 트랙만 그린다 — 0% 로 그리면 안 된다. */
 function ring(

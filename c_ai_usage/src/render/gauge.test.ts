@@ -151,6 +151,24 @@ describe('renderGauge', () => {
     expect([...used].filter((t) => !proven.has(t))).toEqual([]);
   });
 
+  /**
+   * 캔버스를 칠하지 않는다 — 스트림덱 프로필 배경이 그대로 비쳐야 한다.
+   *
+   * 배경판을 되살리는 것과 가정 배경색으로 채운 가림막(없앤 chip 이 그랬다)을 넣는 것이 같은
+   * 실수인데, 둘 다 어두운 배경에서는 정상으로 보여 눈으로는 잡히지 않는다.
+   */
+  it('캔버스를 칠하지 않는다 — 배경은 스트림덱이 그린다', () => {
+    for (const state of ['ok', 'blocked'] as SourceState[]) {
+      for (const surface of ['dial', 'key'] as Surface[]) {
+        for (const chart of ['donut', 'bar'] as ChartType[]) {
+          const svg = renderGauge(vm({ state }), { surface, chart, basis: 'used' }, FIXED_NOW);
+          expect(svg).not.toMatch(/<rect x="0" y="0"/);
+          expect(svg).not.toContain('#16181c');
+        }
+      }
+    }
+  });
+
   it('dominant-baseline 을 쓰지 않는다 — 세로 정렬을 좌표로 잡는다', () => {
     expect(
       renderGauge(vm(), { surface: 'key', chart: 'donut', basis: 'used' }, FIXED_NOW),
@@ -222,6 +240,24 @@ describe('renderGauge', () => {
     expect(svg).toContain('주간만 제공');
   });
 
+  /**
+   * 다이얼 도넛은 두 셀이 같은 크기라 승격이 **자리가 아니라 색**으로 나타난다. 강조까지
+   * 5H 에 고정하면(디자인 원안) Codex 는 유일하게 아는 값이 조역 색으로 그려진다 — 화면은
+   * 멀쩡해 보이고 아무 신호도 없다. 자리는 5H·주간으로 고정된 채여야 한다.
+   */
+  it('다이얼 도넛은 승격을 자리가 아니라 강조로 나타낸다', () => {
+    const svg = renderGauge(
+      vm({ provider: 'codex', slots: { fiveHour: null, week: win('WK', 604800, 18) } }),
+      { surface: 'dial', chart: 'donut', basis: 'used' },
+      FIXED_NOW,
+    );
+    // 아는 값은 주역 판독색(TEXT)이다 — 조역색(SUB #c9ced6)이면 승격이 색으로 오지 않은 것이다.
+    expect(svg).toMatch(/fill="#f4f4f5"[^>]*>18%/);
+    // 자리는 그대로 — 주간은 오른쪽 셀이다.
+    expect(svg).toMatch(/x="148"[^>]*>18%/);
+    expect(svg).toContain('주간만 제공');
+  });
+
   it('5H 를 알면 승격하지 않는다', () => {
     const svg = renderGauge(
       vm({ slots: slots(37, 26) }),
@@ -288,8 +324,8 @@ describe('renderGauge', () => {
     );
     expect(svg).not.toContain('<path');
     expect(svg).not.toContain('<line');
-    // 배경판 1개뿐 — 세그먼트도 chip 도 없다.
-    expect(svg.match(/<rect/g)).toHaveLength(1);
+    // 세그먼트도 구분선도 없고 배경판은 애초에 없다.
+    expect(svg).not.toContain('<rect');
     // 헤더 점 + 경고 배지.
     expect(svg.match(/<circle/g)).toHaveLength(2);
   });
@@ -473,7 +509,7 @@ describe('preview', () => {
               path.join(PREVIEW_DIR, `${surface}-${chart}-${basis}-${c.name}.svg`),
               svg,
             );
-            return `<figure><figcaption>${c.name}</figcaption>${svg}</figure>`;
+            return `<figure><figcaption>${c.name}</figcaption><div class="sd">${svg}</div></figure>`;
           });
           rows.push(
             `<section><h2>${surface} / ${chart} / ${basis}</h2><div class="row">${cells.join('')}</div></section>`,
@@ -489,6 +525,8 @@ h2{font-size:11px;color:#6f7783;margin:14px 0 6px;font-weight:600;letter-spacing
 .row{display:flex;gap:10px;flex-wrap:wrap}
 figure{margin:0}
 figcaption{font-size:9px;color:#5d646e;margin-bottom:3px}
+/* 캔버스를 칠하지 않으므로 체커 무늬가 투명 영역이다 — 배경판이 되살아나면 여기서 보인다. */
+.sd{line-height:0;background:repeating-conic-gradient(#131316 0% 25%,#1b1b1f 0% 50%) 50%/12px 12px}
 svg{display:block;outline:1px solid #23262b}
 </style>${rows.join('')}`,
     );
