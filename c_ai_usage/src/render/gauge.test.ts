@@ -2,7 +2,8 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { renderGauge, type Basis, type ChartType, type Surface } from './gauge';
+import { renderGauge, type Basis, type ChartType, type RenderOptions, type Surface } from './gauge';
+import { DEFAULT_THRESHOLDS } from '../settings';
 import type { Provider, SourceState, UsageViewModel, UsageWindow } from '../usage/types';
 
 const PREVIEW_DIR = path.join(import.meta.dirname, '..', '..', 'preview');
@@ -28,7 +29,8 @@ function slots(five: number | null, week: number | null): UsageViewModel['slots'
 
 /**
  * 두 슬롯의 위험도 조합. `risk()` 의 네 등급(none·ok·warn·crit)을 주역·조역 양쪽에서 밟고,
- * 임계 경계(80·95)를 양쪽 기준에서 앞뒤로 스친다.
+ * **기본** 임계 경계(80·95)를 양쪽 기준에서 앞뒤로 스친다. 임계가 인스턴스 설정이 된 뒤로
+ * 이 쌍들이 경계를 스치는 건 기본값에서만이다 — 임계 자체의 가드는 아래 경계 테스트가 한다.
  */
 const RISK_PAIRS: readonly (readonly [number | null, number | null])[] = [
   [null, null],
@@ -42,6 +44,16 @@ const RISK_PAIRS: readonly (readonly [number | null, number | null])[] = [
   [95, 94],
   [100, 100],
 ];
+
+/**
+ * RenderOptions 를 기본 임계값으로 채운다. 임계값은 대부분의 테스트에서 관심사가 아니지만
+ * `renderGauge` 가 **필수**로 받는다 — 옵셔널로 두면 실제 호출부가 빠뜨려도 조용히 통한다.
+ */
+function opts(
+  over: Partial<RenderOptions> & Pick<RenderOptions, 'surface' | 'chart' | 'basis'>,
+): RenderOptions {
+  return { thresholds: DEFAULT_THRESHOLDS, ...over };
+}
 
 function vm(over: Partial<UsageViewModel> = {}): UsageViewModel {
   return {
@@ -57,7 +69,7 @@ describe('renderGauge', () => {
   it('네 조합 모두 캔버스 규격에 맞는 SVG 를 낸다', () => {
     for (const surface of ['dial', 'key'] as Surface[]) {
       for (const chart of ['donut', 'bar'] as ChartType[]) {
-        const svg = renderGauge(vm(), { surface, chart, basis: 'used' }, FIXED_NOW);
+        const svg = renderGauge(vm(), opts({ surface, chart, basis: 'used' }), FIXED_NOW);
         const size = surface === 'dial' ? 'width="200" height="100"' : 'width="144" height="144"';
         expect(svg).toContain(size);
         expect(svg.startsWith('<svg')).toBe(true);
@@ -69,7 +81,7 @@ describe('renderGauge', () => {
   it('stroke-dasharray 를 쓰지 않는다 — 래스터라이저 호환 리스크가 가장 큰 기능이다', () => {
     for (const surface of ['dial', 'key'] as Surface[]) {
       expect(
-        renderGauge(vm(), { surface, chart: 'donut', basis: 'used' }, FIXED_NOW),
+        renderGauge(vm(), opts({ surface, chart: 'donut', basis: 'used' }), FIXED_NOW),
       ).not.toContain('dasharray');
     }
   });
@@ -106,7 +118,7 @@ describe('renderGauge', () => {
               for (const basis of ['used', 'remaining'] as Basis[]) {
                 const svg = renderGauge(
                   vm({ provider, state, slots: slots(five, week) }),
-                  { surface, chart, basis },
+                  opts({ surface, chart, basis }),
                   FIXED_NOW,
                 );
                 for (const [, color] of svg.matchAll(/(?:fill|stroke)="([^"]*)"/g)) {
@@ -138,7 +150,7 @@ describe('renderGauge', () => {
           for (const chart of ['donut', 'bar'] as ChartType[]) {
             const svg = renderGauge(
               vm({ state, slots: slots(five, week) }),
-              { surface, chart, basis: 'used' },
+              opts({ surface, chart, basis: 'used' }),
               FIXED_NOW,
             );
             for (const [, tag] of svg.matchAll(/<([a-z]+)/g)) {
@@ -161,7 +173,11 @@ describe('renderGauge', () => {
     for (const state of ['ok', 'blocked'] as SourceState[]) {
       for (const surface of ['dial', 'key'] as Surface[]) {
         for (const chart of ['donut', 'bar'] as ChartType[]) {
-          const svg = renderGauge(vm({ state }), { surface, chart, basis: 'used' }, FIXED_NOW);
+          const svg = renderGauge(
+            vm({ state }),
+            opts({ surface, chart, basis: 'used' }),
+            FIXED_NOW,
+          );
           expect(svg).not.toMatch(/<rect x="0" y="0"/);
           expect(svg).not.toContain('#16181c');
         }
@@ -171,7 +187,7 @@ describe('renderGauge', () => {
 
   it('dominant-baseline 을 쓰지 않는다 — 세로 정렬을 좌표로 잡는다', () => {
     expect(
-      renderGauge(vm(), { surface: 'key', chart: 'donut', basis: 'used' }, FIXED_NOW),
+      renderGauge(vm(), opts({ surface: 'key', chart: 'donut', basis: 'used' }), FIXED_NOW),
     ).not.toContain('dominant-baseline');
   });
 
@@ -179,11 +195,11 @@ describe('renderGauge', () => {
   it('빈 슬롯은 트랙만 그리고 값에 — 를 쓴다 (0% 아님)', () => {
     const svg = renderGauge(
       vm({ slots: { fiveHour: null, week: win('WK', 604800, 31) } }),
-      {
+      opts({
         surface: 'dial',
         chart: 'donut',
         basis: 'used',
-      },
+      }),
       FIXED_NOW,
     );
     expect(svg).toContain('—');
@@ -193,11 +209,11 @@ describe('renderGauge', () => {
   it('utilization null 에 remaining 을 적용하지 않는다 — 100% 남음은 정반대 오표시다', () => {
     const svg = renderGauge(
       vm({ slots: { fiveHour: win('5H', 18000, null), week: null } }),
-      {
+      opts({
         surface: 'dial',
         chart: 'bar',
         basis: 'remaining',
-      },
+      }),
       FIXED_NOW,
     );
     expect(svg).not.toContain('100%');
@@ -205,7 +221,11 @@ describe('renderGauge', () => {
   });
 
   it('remaining 은 100 에서 뺀 값을 쓴다', () => {
-    const svg = renderGauge(vm(), { surface: 'dial', chart: 'bar', basis: 'remaining' }, FIXED_NOW);
+    const svg = renderGauge(
+      vm(),
+      opts({ surface: 'dial', chart: 'bar', basis: 'remaining' }),
+      FIXED_NOW,
+    );
     expect(svg).toContain('63%'); // 100 - 37
     expect(svg).toContain('74%'); // 100 - 26
   });
@@ -213,7 +233,7 @@ describe('renderGauge', () => {
   it('100% 는 호가 아니라 완전한 원으로 그린다 — A 명령은 360°를 표현할 수 없다', () => {
     const svg = renderGauge(
       vm({ slots: slots(100, 100) }),
-      { surface: 'dial', chart: 'donut', basis: 'used' },
+      opts({ surface: 'dial', chart: 'donut', basis: 'used' }),
       FIXED_NOW,
     );
     // 두 링이 다 꽉 찼으므로 호가 하나도 없어야 한다.
@@ -230,7 +250,7 @@ describe('renderGauge', () => {
         provider: 'codex',
         slots: { fiveHour: null, week: win('WK', 604800, 18, FIXED_NOW + 4 * DAY) },
       }),
-      { surface: 'key', chart: 'bar', basis: 'used' },
+      opts({ surface: 'key', chart: 'bar', basis: 'used' }),
       FIXED_NOW,
     );
     // 주역 숫자는 32px 자리다.
@@ -248,7 +268,7 @@ describe('renderGauge', () => {
   it('다이얼 도넛은 승격을 자리가 아니라 강조로 나타낸다', () => {
     const svg = renderGauge(
       vm({ provider: 'codex', slots: { fiveHour: null, week: win('WK', 604800, 18) } }),
-      { surface: 'dial', chart: 'donut', basis: 'used' },
+      opts({ surface: 'dial', chart: 'donut', basis: 'used' }),
       FIXED_NOW,
     );
     // 아는 값은 주역 판독색(TEXT)이다 — 조역색(SUB #c9ced6)이면 승격이 색으로 오지 않은 것이다.
@@ -261,7 +281,7 @@ describe('renderGauge', () => {
   it('5H 를 알면 승격하지 않는다', () => {
     const svg = renderGauge(
       vm({ slots: slots(37, 26) }),
-      { surface: 'key', chart: 'bar', basis: 'used' },
+      opts({ surface: 'key', chart: 'bar', basis: 'used' }),
       FIXED_NOW,
     );
     expect(svg).toMatch(/font-size="32"[^>]*>37%/);
@@ -272,21 +292,28 @@ describe('renderGauge', () => {
    * 남은양 기준의 뒤집기(`100 - x`)는 그 어긋남이 가장 숨기 좋은 자리다.
    */
   it('임계 경계가 두 기준에서 같은 위험을 같은 색으로 낸다', () => {
-    const gradeOf = (utilization: number, basis: Basis): string => {
-      const svg = renderGauge(
-        vm({ slots: slots(utilization, null) }),
-        { surface: 'key', chart: 'donut', basis },
-        FIXED_NOW,
-      );
-      return svg.includes('#dc2626') ? 'crit' : svg.includes('#d97706') ? 'warn' : 'ok';
-    };
+    for (const [warnAt, critAt] of [
+      [DEFAULT_THRESHOLDS.warnAt, DEFAULT_THRESHOLDS.critAt],
+      // 기본값이 아닌 임계도 함께 돈다 — 기본값만 돌면 `risk()` 가 인자를 읽는지 확인되지 않아,
+      // 임계를 다시 상수로 되돌려도 이 테스트가 통과한다.
+      [60, 85],
+    ] as const) {
+      const gradeOf = (utilization: number, basis: Basis): string => {
+        const svg = renderGauge(
+          vm({ slots: slots(utilization, null) }),
+          opts({ surface: 'key', chart: 'donut', basis, thresholds: { warnAt, critAt } }),
+          FIXED_NOW,
+        );
+        return svg.includes('#dc2626') ? 'crit' : svg.includes('#d97706') ? 'warn' : 'ok';
+      };
 
-    expect(gradeOf(79, 'used')).toBe('ok');
-    expect(gradeOf(80, 'used')).toBe('warn');
-    expect(gradeOf(94, 'used')).toBe('warn');
-    expect(gradeOf(95, 'used')).toBe('crit');
-    for (const utilization of [79, 80, 94, 95]) {
-      expect(gradeOf(utilization, 'remaining')).toBe(gradeOf(utilization, 'used'));
+      expect(gradeOf(warnAt - 1, 'used')).toBe('ok');
+      expect(gradeOf(warnAt, 'used')).toBe('warn');
+      expect(gradeOf(critAt - 1, 'used')).toBe('warn');
+      expect(gradeOf(critAt, 'used')).toBe('crit');
+      for (const utilization of [warnAt - 1, warnAt, critAt - 1, critAt]) {
+        expect(gradeOf(utilization, 'remaining')).toBe(gradeOf(utilization, 'used'));
+      }
     }
   });
 
@@ -298,7 +325,7 @@ describe('renderGauge', () => {
           week: win('WK', 604800, 26, FIXED_NOW + 3 * DAY + 4 * HOUR),
         },
       }),
-      { surface: 'key', chart: 'donut', basis: 'used' },
+      opts({ surface: 'key', chart: 'donut', basis: 'used' }),
       FIXED_NOW,
     );
     expect(svg).toContain('2h 14m');
@@ -308,7 +335,7 @@ describe('renderGauge', () => {
   it('이미 지난 초기화 시각을 음수로 쓰지 않는다 — 폴링 사이에 창이 초기화될 수 있다', () => {
     const svg = renderGauge(
       vm({ slots: { fiveHour: win('5H', 18000, 37, FIXED_NOW - 90_000), week: null } }),
-      { surface: 'dial', chart: 'bar', basis: 'used' },
+      opts({ surface: 'dial', chart: 'bar', basis: 'used' }),
       FIXED_NOW,
     );
     expect(svg).toContain('0m');
@@ -319,7 +346,7 @@ describe('renderGauge', () => {
   it('실패 화면에는 게이지 기하가 없다', () => {
     const svg = renderGauge(
       vm({ state: 'blocked' }),
-      { surface: 'key', chart: 'bar', basis: 'used' },
+      opts({ surface: 'key', chart: 'bar', basis: 'used' }),
       FIXED_NOW,
     );
     expect(svg).not.toContain('<path');
@@ -344,7 +371,11 @@ describe('renderGauge', () => {
       'shape-changed',
     ];
     const rendered = states.map((state) =>
-      renderGauge(vm({ state }), { surface: 'dial', chart: 'donut', basis: 'used' }, FIXED_NOW),
+      renderGauge(
+        vm({ state }),
+        opts({ surface: 'dial', chart: 'donut', basis: 'used' }),
+        FIXED_NOW,
+      ),
     );
     expect(new Set(rendered).size).toBe(states.length);
   });
@@ -352,7 +383,7 @@ describe('renderGauge', () => {
   it('stale 은 게이지를 유지하고 나이를 덧붙인다', () => {
     const svg = renderGauge(
       vm({ state: 'stale', fetchedAtMs: FIXED_NOW - 8 * 60_000 }),
-      { surface: 'dial', chart: 'donut', basis: 'used' },
+      opts({ surface: 'dial', chart: 'donut', basis: 'used' }),
       FIXED_NOW,
     );
     expect(svg).toContain('37%');
@@ -362,20 +393,20 @@ describe('renderGauge', () => {
   it('프로바이더별로 accent 색이 다르다', () => {
     const claude = renderGauge(
       vm({ provider: 'claude' }),
-      {
+      opts({
         surface: 'dial',
         chart: 'bar',
         basis: 'used',
-      },
+      }),
       FIXED_NOW,
     );
     const codex = renderGauge(
       vm({ provider: 'codex' }),
-      {
+      opts({
         surface: 'dial',
         chart: 'bar',
         basis: 'used',
-      },
+      }),
       FIXED_NOW,
     );
     expect(claude).toContain('#d97757');
@@ -387,11 +418,11 @@ describe('renderGauge', () => {
   it('라벨의 XML 특수문자를 이스케이프한다 — 라벨은 서버가 주는 문자열이다', () => {
     const svg = renderGauge(
       vm({ slots: { fiveHour: win('A<B&C', 18000, 5), week: null } }),
-      {
+      opts({
         surface: 'dial',
         chart: 'bar',
         basis: 'used',
-      },
+      }),
       FIXED_NOW,
     );
     expect(svg).toContain('A&lt;B&amp;C');
@@ -401,11 +432,11 @@ describe('renderGauge', () => {
   it('두 슬롯이 다 비면 데이터 없음을 그린다', () => {
     const svg = renderGauge(
       vm({ slots: { fiveHour: null, week: null } }),
-      {
+      opts({
         surface: 'dial',
         chart: 'donut',
         basis: 'used',
-      },
+      }),
       FIXED_NOW,
     );
     expect(svg).toContain('데이터 없음');
@@ -504,7 +535,7 @@ describe('preview', () => {
       for (const chart of ['donut', 'bar'] as ChartType[]) {
         for (const basis of ['used', 'remaining'] as Basis[]) {
           const cells = cases.map((c) => {
-            const svg = renderGauge(c.vm, { surface, chart, basis }, FIXED_NOW);
+            const svg = renderGauge(c.vm, opts({ surface, chart, basis }), FIXED_NOW);
             writeFileSync(
               path.join(PREVIEW_DIR, `${surface}-${chart}-${basis}-${c.name}.svg`),
               svg,

@@ -13,7 +13,14 @@ import streamDeck, {
 
 import { renderGauge } from '../render/gauge';
 import { PROBE_INTERVAL_MS, probeEnabled, probeStages } from '../render/probe';
-import { nextBasis, nextChart, resolveBasis, resolveChart, type GaugeSettings } from '../settings';
+import {
+  nextBasis,
+  nextChart,
+  resolveBasis,
+  resolveChart,
+  resolveThresholds,
+  type GaugeSettings,
+} from '../settings';
 import type { UsageService } from '../usage/service';
 import type { UsageViewModel } from '../usage/types';
 
@@ -186,6 +193,7 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
         surface: action.isDial() ? 'dial' : 'key',
         chart: resolveChart(settings),
         basis: resolveBasis(settings),
+        thresholds: resolveThresholds(settings),
       },
       Date.now(),
     );

@@ -4,10 +4,21 @@ export type Surface = 'dial' | 'key';
 export type ChartType = 'donut' | 'bar';
 export type Basis = 'used' | 'remaining';
 
+/**
+ * 임계값. 기본값과 정규화는 `settings.ts` 의 `resolveThresholds()` 가 소유한다 — 여기서는
+ * 이미 정규화된 값을 받는다(`warnAt <= critAt` 가 보장된 상태).
+ */
+export type Thresholds = {
+  warnAt: number;
+  critAt: number;
+};
+
 export type RenderOptions = {
   surface: Surface;
   chart: ChartType;
   basis: Basis;
+  /** 필수다 — 옵셔널로 두면 호출부가 빠뜨려도 조용히 기본값으로 그려져 설정이 먹지 않는다. */
+  thresholds: Thresholds;
 };
 
 const CANVAS: Record<Surface, { w: number; h: number }> = {
@@ -41,13 +52,6 @@ const CRIT_TEXT = '#fca5a5';
  * 올려버린다. 흐린 색은 "지금 볼 필요 없는 창"에만 쓰이고, 판독 숫자는 {@link SUB} 가 따로 쓴다.
  */
 const ACCENT_DIM: Record<Provider, string> = { claude: '#814c3c', codex: '#136452' };
-
-/**
- * 사용량 기준 임계. 남은양 기준에서는 `100 - x` 로 뒤집힌다 — 사용 80% 와 남은 20% 는
- * 같은 상황이라 같은 색이어야 하므로 값이 아니라 위험도로 판정한다.
- */
-const WARN_AT = 80;
-const CRIT_AT = 95;
 
 /** 세그먼트 미터 칸 수. 10칸이면 켜진 칸 수가 그대로 "몇 십 퍼센트"로 읽힌다. */
 const SEG_COUNT = 10;
@@ -98,7 +102,7 @@ type Slot = {
   note: string | null;
 };
 
-type Ctx = { basis: Basis; provider: Provider };
+type Ctx = { basis: Basis; provider: Provider; thresholds: Thresholds };
 
 /**
  * 뷰모델 하나를 SVG 문자열로 그린다. 순수 함수다 — 픽스처만으로 전 상태를 검증할 수 있다.
@@ -141,7 +145,7 @@ function body(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
     return notice(opts.surface, NO_DATA, vm.provider, 'calm');
   }
   const [primary, secondary] = lead(vm, opts.basis, nowMs);
-  const ctx: Ctx = { basis: opts.basis, provider: vm.provider };
+  const ctx: Ctx = { basis: opts.basis, provider: vm.provider, thresholds: opts.thresholds };
   if (opts.chart === 'donut') {
     return opts.surface === 'dial'
       ? dialDonut(primary, secondary, ctx)
@@ -362,35 +366,39 @@ function notice(surface: Surface, n: Notice, provider: Provider, tone: 'alert' |
 
 type Risk = 'none' | 'ok' | 'warn' | 'crit';
 
-/** 표시값이 아니라 **위험**으로 판정한다 — 그래서 남은양 기준에서 임계가 뒤집힌다. */
-function risk(v: number | null, basis: Basis): Risk {
+/**
+ * 표시값이 아니라 **위험**으로 판정한다 — 그래서 남은양 기준에서 임계가 뒤집힌다.
+ * 임계값 자체는 인스턴스 설정이고 정규화는 `resolveThresholds()` 가 이미 했다.
+ */
+function risk(v: number | null, c: Ctx): Risk {
   if (v === null) {
     return 'none';
   }
-  if (basis === 'used') {
-    return v >= CRIT_AT ? 'crit' : v >= WARN_AT ? 'warn' : 'ok';
+  const { warnAt, critAt } = c.thresholds;
+  if (c.basis === 'used') {
+    return v >= critAt ? 'crit' : v >= warnAt ? 'warn' : 'ok';
   }
-  return v <= 100 - CRIT_AT ? 'crit' : v <= 100 - WARN_AT ? 'warn' : 'ok';
+  return v <= 100 - critAt ? 'crit' : v <= 100 - warnAt ? 'warn' : 'ok';
 }
 
 function gaugeColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c.basis);
+  const k = risk(v, c);
   return k === 'crit' ? CRIT : k === 'warn' ? WARN : ACCENT[c.provider];
 }
 
 /** 조역 게이지. 위험해지면 주역과 같은 강도로 올라온다 — 흐린 건 안전할 때만이다. */
 function softColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c.basis);
+  const k = risk(v, c);
   return k === 'crit' ? CRIT : k === 'warn' ? WARN : ACCENT_DIM[c.provider];
 }
 
 function numColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c.basis);
+  const k = risk(v, c);
   return k === 'none' ? MUTED : k === 'crit' ? CRIT_TEXT : k === 'warn' ? WARN_TEXT : TEXT;
 }
 
 function subColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c.basis);
+  const k = risk(v, c);
   return k === 'none' ? MUTED : k === 'crit' ? CRIT_TEXT : k === 'warn' ? WARN_TEXT : SUB;
 }
 
