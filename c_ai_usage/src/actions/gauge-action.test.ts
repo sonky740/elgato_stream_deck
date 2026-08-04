@@ -57,9 +57,13 @@ function lastSvg(sent: readonly string[]): string {
   );
 }
 
-/** 마지막으로 전송된 SVG 가 어느 차트인지. 도넛만 `<circle>` 로 링을 그린다. */
+/**
+ * 마지막으로 전송된 SVG 가 어느 차트인지. 도넛만 트랙을 **stroke** 로 그린다(세그먼트는 fill).
+ *
+ * `<circle>` 유무로 보면 안 된다 — 헤더의 프로바이더 점이 두 차트에 다 있다.
+ */
 function lastChart(sent: readonly string[]): ChartType {
-  return lastSvg(sent).includes('<circle') ? 'donut' : 'bar';
+  return lastSvg(sent).includes('stroke="#32363e"') ? 'donut' : 'bar';
 }
 
 function vm(utilization = 37): UsageViewModel {

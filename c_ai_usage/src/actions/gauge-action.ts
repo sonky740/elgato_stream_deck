@@ -42,7 +42,13 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
   readonly #service: UsageService;
   /** 인스턴스별 구독 해제 함수. */
   readonly #detachers = new Map<string, () => void>();
-  /** 인스턴스별 마지막 전송 페이로드. 같으면 재전송하지 않는다(수 KB 낭비 방지). */
+  /**
+   * 인스턴스별 마지막 전송 페이로드. 같으면 재전송하지 않는다(수 KB 낭비 방지).
+   *
+   * 게이지에 남은 시간 카운트다운이 들어간 뒤로는 폴링마다 문구가 달라져 이 가드가 걸리는
+   * 일이 드물다. 여전히 필요한 건 **설정 변경 경로** 다 — `#apply` 의 명시적 렌더와
+   * `didReceiveSettings` 에코가 겹쳐 같은 페이로드를 두 번 보내는 것을 여기서 막는다.
+   */
   readonly #lastSent = new Map<string, string>();
   /** 인스턴스별 마지막 뷰모델. 설정만 바뀌었을 때 네트워크 없이 다시 그리기 위해 보관한다. */
   readonly #lastVm = new Map<string, UsageViewModel>();
