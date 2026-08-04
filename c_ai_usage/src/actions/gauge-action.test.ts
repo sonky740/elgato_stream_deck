@@ -50,13 +50,16 @@ function fakeAction(surface: 'dial' | 'key') {
   return { action, sent, saved };
 }
 
-/** 마지막으로 전송된 SVG 가 어느 차트인지. 도넛만 `<circle>` 로 링을 그린다. */
-function lastChart(sent: readonly string[]): ChartType {
+function lastSvg(sent: readonly string[]): string {
   const payload = sent.at(-1) ?? '';
-  const svg = Buffer.from(payload.replace(/^data:image\/svg\+xml;base64,/, ''), 'base64').toString(
+  return Buffer.from(payload.replace(/^data:image\/svg\+xml;base64,/, ''), 'base64').toString(
     'utf8',
   );
-  return svg.includes('<circle') ? 'donut' : 'bar';
+}
+
+/** 마지막으로 전송된 SVG 가 어느 차트인지. 도넛만 `<circle>` 로 링을 그린다. */
+function lastChart(sent: readonly string[]): ChartType {
+  return lastSvg(sent).includes('<circle') ? 'donut' : 'bar';
 }
 
 function vm(utilization = 37): UsageViewModel {
@@ -74,6 +77,10 @@ function vm(utilization = 37): UsageViewModel {
 /* eslint-disable @typescript-eslint/no-explicit-any -- SDK 이벤트/액션 타입을 최소 페이크로 대체한다 */
 function appear(action: unknown, settings: GaugeSettings): any {
   return { action, payload: { settings } };
+}
+
+function rotation(action: unknown, settings: GaugeSettings, ticks: number): any {
+  return { action, payload: { settings, ticks } };
 }
 
 describe('GaugeActionBase 인터랙션', () => {
@@ -113,7 +120,11 @@ describe('GaugeActionBase 인터랙션', () => {
     expect(lastChart(sent)).toBe('bar');
   });
 
-  it('회전 방향이 차트를 절대 배정하고 같은 방향 반복은 멱등이다', async () => {
+  /**
+   * 같은 방향으로 계속 돌리면 계속 순환해야 한다. 방향을 차트에 절대 배정하면 두 번째 회전이
+   * 제자리가 되는데, 실기기에서 그게 "돌려도 가만히 있다" 로 읽혔다.
+   */
+  it('같은 방향으로 계속 돌려도 차트가 계속 순환한다', async () => {
     const { service, push } = fakeService();
     const { action, sent, saved } = fakeAction('dial');
     const subject = new TestAction(service);
@@ -122,22 +133,51 @@ describe('GaugeActionBase 인터랙션', () => {
     push(vm());
     expect(lastChart(sent)).toBe('donut');
 
-    await subject.onDialRotate({ action, payload: { settings: {}, ticks: 1 } } as any);
+    // Stream Deck 은 이벤트마다 현재 설정을 실어 보내므로 마지막 저장값을 다시 넘긴다.
+    const current = (): GaugeSettings => saved.at(-1) ?? {};
+    await subject.onDialRotate(rotation(action, current(), 1));
     expect(lastChart(sent)).toBe('bar');
-
-    // 이미 바면 저장도 렌더도 하지 않는다 — 몇 칸을 더 돌려도 흔들리지 않는다.
-    await subject.onDialRotate({
-      action,
-      payload: { settings: { chart: 'bar' }, ticks: 3 },
-    } as any);
-    expect(saved).toHaveLength(1);
-    expect(lastChart(sent)).toBe('bar');
-
-    await subject.onDialRotate({
-      action,
-      payload: { settings: { chart: 'bar' }, ticks: -1 },
-    } as any);
+    await subject.onDialRotate(rotation(action, current(), 1));
     expect(lastChart(sent)).toBe('donut');
+    await subject.onDialRotate(rotation(action, current(), 1));
+    expect(lastChart(sent)).toBe('bar');
+
+    // 반대로 돌려도 한 칸씩 움직인다.
+    await subject.onDialRotate(rotation(action, current(), -1));
+    expect(lastChart(sent)).toBe('donut');
+  });
+
+  /**
+   * 빠르게 튕기면 한 이벤트에 ticks 가 여러 개 실린다. 크기만큼 이동하면 차트가 2종이라
+   * 짝수 입력이 제자리가 되어 조작에 반응이 없는 것처럼 보인다 — 방향만 쓴다.
+   */
+  it('ticks 가 여러 개여도 한 칸만 움직인다', async () => {
+    const { service, push } = fakeService();
+    const { action, sent } = fakeAction('dial');
+    const subject = new TestAction(service);
+
+    subject.onWillAppear(appear(action, {}));
+    push(vm());
+    await subject.onDialRotate(rotation(action, {}, 4));
+    expect(lastChart(sent)).toBe('bar');
+  });
+
+  it('다이얼 누름과 터치가 기준을 전환하고 차트는 보존한다', async () => {
+    const { service, push } = fakeService();
+    const { action, sent, saved } = fakeAction('dial');
+    const subject = new TestAction(service);
+
+    subject.onWillAppear(appear(action, { chart: 'bar' }));
+    push(vm());
+    expect(lastSvg(sent)).toContain('37%');
+
+    await subject.onDialDown(appear(action, { chart: 'bar' }));
+    expect(saved.at(-1)).toEqual({ chart: 'bar', basis: 'remaining' });
+    expect(lastSvg(sent)).toContain('63%'); // 100 - 37
+
+    await subject.onTouchTap(appear(action, saved.at(-1) ?? {}));
+    expect(saved.at(-1)).toEqual({ chart: 'bar', basis: 'used' });
+    expect(lastSvg(sent)).toContain('37%');
   });
 
   it('차트를 바꿀 때 basis 를 보존한다 — setSettings 는 설정을 통째로 덮어쓴다', async () => {

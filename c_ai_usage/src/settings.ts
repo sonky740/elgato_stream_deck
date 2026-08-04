@@ -36,10 +36,16 @@ export function resolveChart(s: GaugeSettings | undefined): ChartType {
   return chart !== undefined && CHART_TYPES.includes(chart) ? chart : DEFAULT_CHART;
 }
 
-/** 다음 차트. 키 누름은 회전 방향 같은 정보가 없어 순환만 할 수 있다. */
-export function nextChart(current: ChartType): ChartType {
+/** `step` 칸 이동한 차트. 양끝에서 감싸므로 같은 방향으로 계속 돌려도 멈추지 않는다. */
+export function nextChart(current: ChartType, step: number): ChartType {
+  const len = CHART_TYPES.length;
   const i = CHART_TYPES.indexOf(current);
-  return CHART_TYPES[(i + 1) % CHART_TYPES.length] ?? DEFAULT_CHART;
+  return CHART_TYPES[(((i + step) % len) + len) % len] ?? DEFAULT_CHART;
+}
+
+/** 기준 전환. 2종뿐이라 순환이 아니라 뒤집기다. */
+export function nextBasis(current: Basis): Basis {
+  return current === 'used' ? 'remaining' : 'used';
 }
 
 export function resolveBasis(s: GaugeSettings | undefined): Basis {

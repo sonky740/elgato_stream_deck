@@ -1,17 +1,19 @@
 import streamDeck, {
   SingletonAction,
   type DialAction,
+  type DialDownEvent,
   type DialRotateEvent,
   type DidReceiveSettingsEvent,
   type KeyAction,
   type KeyDownEvent,
+  type TouchTapEvent,
   type WillAppearEvent,
   type WillDisappearEvent,
 } from '@elgato/streamdeck';
 
-import { renderGauge, type ChartType } from '../render/gauge';
+import { renderGauge } from '../render/gauge';
 import { PROBE_INTERVAL_MS, probeEnabled, probeStages } from '../render/probe';
-import { nextChart, resolveBasis, resolveChart, type GaugeSettings } from '../settings';
+import { nextBasis, nextChart, resolveBasis, resolveChart, type GaugeSettings } from '../settings';
 import type { UsageService } from '../usage/service';
 import type { UsageViewModel } from '../usage/types';
 
@@ -88,29 +90,52 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
     }
   }
 
-  /** 키 누름 → 차트 순환. 키에는 방향 정보가 없어 순환만 할 수 있다. */
+  /** 키 누름 → 차트 한 칸. 키에는 방향 정보가 없어 항상 정방향이다. */
   override async onKeyDown(ev: KeyDownEvent<GaugeSettings>): Promise<void> {
-    const { settings } = ev.payload;
-    await this.#setChart(ev.action, settings, nextChart(resolveChart(settings)));
-  }
-
-  /** 다이얼 회전 → 차트. 방향을 차트에 절대 배정한다({@link chartForRotation}). */
-  override async onDialRotate(ev: DialRotateEvent<GaugeSettings>): Promise<void> {
-    await this.#setChart(ev.action, ev.payload.settings, chartForRotation(ev.payload.ticks));
+    await this.#cycleChart(ev.action, ev.payload.settings, 1);
   }
 
   /**
-   * 차트를 바꿔 저장하고 즉시 다시 그린다.
+   * 다이얼 회전 → 회전 방향으로 차트 한 칸. 목록 양끝에서 감싸므로 같은 방향으로 계속 돌려도
+   * 계속 바뀐다 — 조작마다 화면이 반응하는 것이 다이얼의 기대 동작이다.
+   *
+   * 스텝을 `ticks` 크기가 아니라 방향(±1)으로 잡는다. 빠르게 튕기면 한 이벤트에 `ticks` 가
+   * 여러 개 실려 오는데, 차트가 2종이라 크기만큼 이동하면 짝수 입력이 제자리가 되어 조작에
+   * 반응이 없는 것처럼 보인다.
+   */
+  override async onDialRotate(ev: DialRotateEvent<GaugeSettings>): Promise<void> {
+    await this.#cycleChart(ev.action, ev.payload.settings, Math.sign(ev.payload.ticks));
+  }
+
+  /** 다이얼 누름 → 기준 전환. 키는 누름을 이미 차트에 쓰므로 기준이 PI 전용으로 남는다. */
+  override async onDialDown(ev: DialDownEvent<GaugeSettings>): Promise<void> {
+    await this.#toggleBasis(ev.action, ev.payload.settings);
+  }
+
+  /** 터치스트립 탭 → 기준 전환. 누름과 같은 동작으로 둔다(media_controller 와 같은 관용구). */
+  override async onTouchTap(ev: TouchTapEvent<GaugeSettings>): Promise<void> {
+    await this.#toggleBasis(ev.action, ev.payload.settings);
+  }
+
+  async #cycleChart(action: GaugeAction, settings: GaugeSettings, step: number): Promise<void> {
+    if (step === 0) {
+      return;
+    }
+    await this.#apply(action, { ...settings, chart: nextChart(resolveChart(settings), step) });
+  }
+
+  async #toggleBasis(action: GaugeAction, settings: GaugeSettings): Promise<void> {
+    await this.#apply(action, { ...settings, basis: nextBasis(resolveBasis(settings)) });
+  }
+
+  /**
+   * 바뀐 설정을 저장하고 즉시 다시 그린다. 호출부가 `{ ...settings }` 를 펼쳐 넘겨야 한다 —
+   * `setSettings` 는 인스턴스 설정을 통째로 덮어쓰므로 빠뜨린 필드는 날아간다.
    *
    * 플러그인 자신의 `setSettings` 가 `didReceiveSettings` 로 돌아온다는 보장이 없어 렌더를
    * 명시적으로 한다 — 돌아온다 해도 `#lastSent` 가 같은 페이로드를 걸러내므로 중복이 없다.
    */
-  async #setChart(action: GaugeAction, settings: GaugeSettings, chart: ChartType): Promise<void> {
-    if (resolveChart(settings) === chart) {
-      return;
-    }
-    // `setSettings` 는 인스턴스 설정을 통째로 덮어쓴다 — 펼쳐 넘기지 않으면 basis 가 날아간다.
-    const next: GaugeSettings = { ...settings, chart };
+  async #apply(action: GaugeAction, next: GaugeSettings): Promise<void> {
     this.#settings.set(action.id, next);
     await action.setSettings(next);
     const vm = this.#lastVm.get(action.id);
@@ -157,17 +182,6 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
       streamDeck.logger.warn('게이지 렌더 실패', err);
     }
   }
-}
-
-/**
- * 회전 방향을 차트에 **절대 배정**한다 — 시계방향은 항상 바, 반시계는 항상 도넛.
- *
- * 순환 토글로 만들지 않은 이유: 디텐트 한 칸이 `ticks` 여러 개나 이벤트 여러 개로 배치될 수
- * 있어, 차트가 2종이면 토글의 최종 상태가 배치 방식에 따라 비결정적이 된다(짝수면 제자리).
- * 절대 배정은 배치와 무관하게 멱등이고, 같은 방향을 더 돌려도 값이 흔들리지 않는다.
- */
-function chartForRotation(ticks: number): ChartType {
-  return ticks > 0 ? 'bar' : 'donut';
 }
 
 /**
