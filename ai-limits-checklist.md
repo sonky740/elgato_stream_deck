@@ -42,7 +42,7 @@
   - [x] 프로브 해제 + 실제 게이지 end-to-end — 로그 `claude usage: loading → ok (5H 69% / WK 30%)`
   - [x] 인코딩 판정 — **raw `<svg>` 문자열은 pixmap 에서 안 그려진다**(빈 화면, 전송 오류 없음). Elgato 스키마 설명과 실제가 불일치. `encodeSvg()` 를 base64 data URI 로 교체
   - [x] **base64 data URI 다이얼 표시 확인 — 잘 보인다.** 출하 형식 확정
-  - [ ] ~~키에서 `setImage` 로 반복~~ → 매니페스트가 `Controllers: ["Encoder"]` 뿐이라 지금 불가. Phase 4 로 이월
+  - [x] 키의 `setImage` 경로 — Phase 4 에서 Keypad 를 켰다. base64 data URI 를 `setImage` 로 보내는 것은 **같은 저장소의 media_controller 가 이미 검증한 경로**다(앨범아트 `data:` URI, macOS 실기기 확인 완료). 키 **컴포지션**의 실기기 확인만 남아 있다 — 액션을 키에 올려야 한다
 - [x] `npm run watch -w c-ai-usage` 대신 `streamdeck restart` 로 실기기 반영 확인 (프로브 4회·게이지 1회)
 
 ### 워크스페이스 (§10)
