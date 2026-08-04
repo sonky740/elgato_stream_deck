@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.base.json",
+  "include": ["src/**/*.ts"],
+  // 테스트는 rollup 빌드 대상이 아니다 — vitest 가 자기 변환으로 처리한다.
+  "exclude": ["node_modules", "src/**/*.test.ts"]
+}

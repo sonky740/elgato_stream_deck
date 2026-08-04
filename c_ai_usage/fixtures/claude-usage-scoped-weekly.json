@@ -1,0 +1,8 @@
+{
+  "five_hour": { "utilization": 12.5, "resets_at": "2026-08-04T04:49:59.233339+00:00" },
+  "seven_day": { "utilization": 26.0, "resets_at": "2026-08-07T01:59:59.233360+00:00" },
+  "seven_day_opus": { "utilization": 81.0, "resets_at": "2026-08-07T01:59:59.233360+00:00" },
+  "seven_day_sonnet": null,
+  "brand_new_codename_window": { "utilization": 99.0, "resets_at": null },
+  "extra_usage": { "is_enabled": false, "utilization": null }
+}

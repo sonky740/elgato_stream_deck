@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "C AI Usage",
+  "Version": "0.1.0.0",
+  "Author": "sonky",
+  "Actions": [
+    {
+      "Name": "Claude Usage",
+      "UUID": "com.sonky.c-ai-usage.claude",
+      "Icon": "imgs/actions/claude/icon",
+      "Tooltip": "Claude 구독 사용량을 5시간·주간 두 창으로 표시합니다.",
+      "Controllers": ["Encoder"],
+      "Encoder": {
+        "Icon": "imgs/actions/claude/encoder-icon",
+        "layout": "layouts/usage.json"
+      },
+      "States": [
+        {
+          "Image": "imgs/actions/claude/key"
+        }
+      ]
+    }
+  ],
+  "Category": "C AI Usage",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "CodePath": "bin/plugin.js",
+  "Description": "Claude / Codex 구독 사용량 한도를 계정 API 에서 읽어 5시간·주간 두 창으로 표시하는 Stream Deck + 플러그인.",
+  "Icon": "imgs/plugin/marketplace",
+  "SDKVersion": 3,
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    }
+  ],
+  "Nodejs": {
+    "Version": "24"
+  },
+  "UUID": "com.sonky.c-ai-usage"
+}

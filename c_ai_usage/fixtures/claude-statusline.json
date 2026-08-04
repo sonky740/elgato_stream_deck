@@ -1,0 +1,7 @@
+{
+  "writtenAtMs": 1786190000000,
+  "rate_limits": {
+    "five_hour": { "used_percentage": 41, "resets_at": 1786192199 },
+    "seven_day": { "used_percentage": 26, "resets_at": 1786435199 }
+  }
+}

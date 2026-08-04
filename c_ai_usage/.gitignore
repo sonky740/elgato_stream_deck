@@ -1,0 +1,9 @@
+# Node.js
+node_modules/
+
+# Stream Deck files
+*.sdPlugin/bin
+*.sdPlugin/logs
+
+# 렌더 프리뷰(생성물)
+preview/
