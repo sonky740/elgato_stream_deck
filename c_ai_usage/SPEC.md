@@ -31,7 +31,8 @@ Codex 도 포함한다 — 단 OpenAI 가 2026-07-13 이후 주간 창만 반환
 13. **로컬 사용량 로그를 소스로 쓰지 않는다.** `~/.claude/projects/**/*.jsonl` · `~/.codex/sessions/**/*.jsonl` 는 명시적으로 배제한다.
 14. **설정 스코프**: 차트·기준은 **인스턴스**(액션 설정), 갱신 주기는 **전역**. 토큰류는 어느 쪽에도 두지 않는다 — 액션 설정은 평문이고 프로필 export 에 포함된다.
 15. **갱신 주기 하한 60s.** 게이트 2 실측 근거값이다. 그보다 짧게 열면 사용자가 §0 사고를 재현할 수 있으므로 경계에서 clamp 한다.
-16. **폴링 간격 변경은 실패 중에 적용하지 않는다.** 백오프·서킷 대기를 새 간격으로 갈아치우면 그 대기가 짧아져 "실패가 요청 빈도를 올리는 경로" 가 다시 열린다.
+16. **키에서는 `setTitle` 을 호출하지 않는다.** SVG 안에 이미 퍼센트를 그렸고, 사용자 커스텀 타이틀은 플러그인 출력을 억제한다 — 매니페스트 `UserTitleEnabled: false` 로 원인 자체를 없앴다.
+17. **폴링 간격 변경은 실패 중에 적용하지 않는다.** 백오프·서킷 대기를 새 간격으로 갈아치우면 그 대기가 짧아져 "실패가 요청 빈도를 올리는 경로" 가 다시 열린다.
 
 ## Architecture
 
@@ -73,7 +74,8 @@ src/plugin.ts                     서비스 생성 → 액션 주입 → connect
 
 - `@elgato/streamdeck` ^2.1.0 — 유일한 런타임 의존. **네이티브 바이너리 의존이 없다.**
 - 게이지는 in-plugin SVG 생성이다. `@napi-rs/canvas` 같은 플랫폼별 네이티브 캔버스를 쓰면 이 저장소가 지키는 self-contained 배포 성질이 깨진다.
-- macOS 자격증명은 `/usr/bin/security` shell out(OS 기본 제공).
+- macOS 자격증명은 `/usr/bin/security` shell out(OS 기본 제공). Windows·Linux 는 파일 읽기 — **네이티브 의존이 없다.**
+- ⚠ **Windows 는 구현 · 미검증.** 이 저장소는 macOS 에서 작성됐다. 네이티브 의존이 없어 위험은 자격증명 경로(`%USERPROFILE%\.claude\.credentials.json` · `%USERPROFILE%\.codex\auth.json`)에 국한된다.
 - PI 는 `sdpi-components` v4.0.1 을 **로컬 vendor** 한다(CDN 아님). ⚠ 이 버전에 `sdpi-item-group` 은 **없다** — 커스텀 엘리먼트 등록 목록으로 확인했다.
 
 ## Glossary

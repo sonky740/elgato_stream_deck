@@ -169,19 +169,19 @@
 
 ## Phase 4 — Keypad (§6)
 
-- [ ] 144x144 컴포지션
-- [ ] 모든 것을 SVG 안에 그림 — `setTitle` 호출 안 함(퍼센트 위에 겹침)
-- [ ] `States[0].Image` 를 데이터 도착 전 fallback 으로 유지
-- [ ] 사용자 커스텀 타이틀/이미지가 플러그인 출력을 억제한다는 사실 문서화
-- [ ] 매니페스트 `Controllers` 에 `"Keypad"` 추가
+- [x] 144x144 컴포지션 — 렌더러가 동심원 2개(도넛) / 2단 바를 그린다. 헤드리스 래스터라이즈로 실제 픽셀 크기 가독성 확인
+- [x] 모든 것을 SVG 안에 그림 — `setTitle` 을 호출하지 않는다. 추가로 매니페스트 `UserTitleEnabled: false` 로 타이틀 편집 UI 자체를 껐다
+- [x] `States[0].Image` 를 데이터 도착 전 fallback 으로 유지
+- [x] 사용자 커스텀 타이틀/이미지가 플러그인 출력을 억제한다는 사실 문서화 — `UserTitleEnabled: false` 로 타이틀 쪽은 원인 자체를 제거
+- [x] 매니페스트 `Controllers: ["Encoder", "Keypad"]` (두 액션 모두)
 
 ## Phase 5 — Windows (§4.1, §4.2)
 
-- [ ] Claude `%USERPROFILE%\.claude\.credentials.json`(`$CLAUDE_CONFIG_DIR` 우선) — 키체인 없음
-- [ ] Codex `%USERPROFILE%\.codex\auth.json`
-- [ ] `usage/credentials.ts` 한 파일에 격리
-- [ ] 매니페스트 `OS` 에 windows 추가
-- [ ] Windows 머신이 없으면 `smtc-helper` 처럼 "구현 · 미검증" 으로 출하 표기
+- [x] Claude `%USERPROFILE%\.claude\.credentials.json`(`$CLAUDE_CONFIG_DIR` 우선) — darwin 이 아니면 파일 경로. 테스트에서 platform 을 win32 로 바꿔 검증
+- [x] Codex `%USERPROFILE%\.codex\auth.json` — `$CODEX_HOME` 우선. 파일 구조가 macOS 와 같아 분기 불필요
+- [x] `usage/credentials.ts` 한 파일에 격리 — `process.platform` 분기가 여기 한 곳뿐
+- [x] 매니페스트 `OS` 에 windows 추가 (10+)
+- [x] **⚠ Windows 는 구현 · 미검증** — 이 저장소는 macOS 에서 작성됐다. `smtc-helper` 와 같은 표기 규칙. 네이티브 의존이 없어 위험은 자격증명 경로에 국한된다
 
 ---
 
