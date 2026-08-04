@@ -6,12 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 플러그인은 루트 하위 디렉토리에 자기완결적으로 들어가고(독립 빌드), **ESLint·Prettier·vitest 설정은 루트에서 공용**으로 가져다 쓴다. 새 플러그인은 루트에 디렉토리를 만들고 루트 [package.json](package.json)의 `workspaces`에 추가한다.
 
-| 워크스페이스                           | 플러그인                                                  | 상태                                         |
-| -------------------------------------- | --------------------------------------------------------- | -------------------------------------------- |
-| [media_controller/](media_controller/) | OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어) | macOS 검증 완료 / Windows 미검증             |
-| [c_ai_usage/](c_ai_usage/)             | Claude·Codex 구독 사용량 한도를 5시간·주간 게이지로 표시  | Phase 1 구현 중 — [SPEC](c_ai_usage/SPEC.md) |
+| 워크스페이스                           | 플러그인                                                  | 상태                             |
+| -------------------------------------- | --------------------------------------------------------- | -------------------------------- |
+| [media_controller/](media_controller/) | OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어) | macOS 검증 완료 / Windows 미검증 |
+| [c_ai_usage/](c_ai_usage/)             | Claude·Codex 구독 사용량 한도를 5시간·주간 게이지로 표시  | macOS 검증 완료 / Windows 미검증 |
 
 대상: macOS 12+ / Windows 10+. Stream Deck 앱 **7.1+** 필요(매니페스트 `SDKVersion: 3`, `Nodejs.Version: 24`).
+
+사람이 읽는 입구는 [README.md](README.md)(모노레포)와 각 플러그인의 `README.md`(설치·사용·플랫폼별 준비물)다. **설치 절차·컨트롤 매핑·요구사항·알려진 한계를 바꾸면 해당 README 도 같이 고친다** — 이 파일과 SPEC 은 그 사실을 중복해서 갖지 않으므로 README 가 유일한 사용자용 기술이다.
 
 ## 명령어
 
