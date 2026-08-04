@@ -20,6 +20,15 @@ const TRACK = '#32363e';
 const TEXT = '#f4f4f5';
 const MUTED = '#868d98';
 const ACCENT: Record<Provider, string> = { claude: '#d97757', codex: '#10a37f' };
+/**
+ * 키 안쪽 링(WK)용 흐린 accent. accent 를 BG 위에 75% 로 섞어 **미리 계산해 둔 6자리 hex** 다.
+ *
+ * ⚠ 여기에 8자리 hex(`#RRGGBBAA`)를 쓰면 안 된다 — 실기기에서 그려지지 않는다(2026-08-04).
+ * 색이 적용되지 않아 링은 채움이 사라지고(`stroke` 없음) 텍스트는 검정이 되어 배경에 묻힌다.
+ * 전송 오류도 경고도 없이 조용히 그렇게 된다. 두 요소 모두 단색 BG 위에 있어 pre-blend 가
+ * 알파와 정확히 같은 결과를 낸다.
+ */
+const ACCENT_DIM: Record<Provider, string> = { claude: '#a85f48', codex: '#128066' };
 
 /** 시스템 폰트 우선. 래스터라이저가 이름을 못 찾으면 마지막 generic 으로 떨어진다. */
 const FONT = "-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif";
@@ -80,7 +89,7 @@ function renderSlots(vm: UsageViewModel, opts: RenderOptions): string {
   if (opts.chart === 'donut') {
     return opts.surface === 'dial'
       ? dialDonuts(fiveHour, week, opts.basis, accent)
-      : keyDonuts(fiveHour, week, opts.basis, accent);
+      : keyDonuts(fiveHour, week, opts.basis, accent, ACCENT_DIM[vm.provider]);
   }
   return opts.surface === 'dial'
     ? dialBars(fiveHour, week, opts.basis, accent)
@@ -146,8 +155,8 @@ function keyDonuts(
   week: UsageWindow | null,
   basis: Basis,
   accent: string,
+  dim: string,
 ): string {
-  const inner = `${accent}8c`;
   // 중심을 82 로 내리고 안쪽 링을 r=39/stroke 11 로 잡으면 중앙 여백 반지름이 33.5 다.
   // 판독 두 줄(베이스라인 76 · 94)이 그 원 안에 들어가므로 링을 침범하지 않는다.
   //
@@ -155,7 +164,7 @@ function keyDonuts(
   // 폰트 12 로 9글자쯤이라 스코프명을 넣으면 안쪽 링을 넘어간다. 스코프는 다이얼에서 보여준다.
   return [
     ring(72, 82, 54, 11, value(fiveHour, basis), accent),
-    ring(72, 82, 39, 11, value(week, basis), inner),
+    ring(72, 82, 39, 11, value(week, basis), dim),
     text(72, 76, readout('5H', value(fiveHour, basis)), {
       size: 12,
       fill: accent,
@@ -164,7 +173,7 @@ function keyDonuts(
     }),
     text(72, 94, readout('WK', value(week, basis)), {
       size: 12,
-      fill: inner,
+      fill: dim,
       weight: 700,
       anchor: 'middle',
     }),

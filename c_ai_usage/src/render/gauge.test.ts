@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { renderGauge, type Basis, type ChartType, type Surface } from './gauge';
-import type { SourceState, UsageViewModel, UsageWindow } from '../usage/types';
+import type { Provider, SourceState, UsageViewModel, UsageWindow } from '../usage/types';
 
 const PREVIEW_DIR = path.join(import.meta.dirname, '..', '..', 'preview');
 
@@ -42,6 +42,49 @@ describe('renderGauge', () => {
         renderGauge(vm(), { surface, chart: 'donut', basis: 'used' }, FIXED_NOW),
       ).not.toContain('dasharray');
     }
+  });
+
+  /**
+   * 8자리 hex 를 넣었더니 안쪽 링이 안 그려지고 텍스트가 검정이 된 실기기 사고(2026-08-04)를
+   * 막는다. 부정 단정(`not.toContain('…8c')`)이 아니라 **모든 색을 뽑아 형식을 단정**하는
+   * 이유가 그것이다 — `rgba()`·`hsl()`·`#RGBA` 도 같은 클래스이므로 함께 막힌다.
+   */
+  it('모든 fill·stroke 가 #RRGGBB 아니면 none 이다', () => {
+    const states: SourceState[] = [
+      'ok',
+      'stale',
+      'loading',
+      'no-credential',
+      'expired',
+      'revoked',
+      'forbidden',
+      'unentitled',
+      'throttled',
+      'blocked',
+      'network',
+      'shape-changed',
+    ];
+    const colors = new Set<string>();
+    for (const provider of ['claude', 'codex'] as Provider[]) {
+      for (const state of states) {
+        for (const surface of ['dial', 'key'] as Surface[]) {
+          for (const chart of ['donut', 'bar'] as ChartType[]) {
+            for (const basis of ['used', 'remaining'] as Basis[]) {
+              const svg = renderGauge(
+                vm({ provider, state }),
+                { surface, chart, basis },
+                FIXED_NOW,
+              );
+              for (const [, color] of svg.matchAll(/(?:fill|stroke)="([^"]*)"/g)) {
+                colors.add(color ?? '');
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(colors.size).toBeGreaterThan(3);
+    expect([...colors].filter((c) => c !== 'none' && !/^#[0-9a-f]{6}$/i.test(c))).toEqual([]);
   });
 
   it('dominant-baseline 을 쓰지 않는다 — 세로 정렬을 좌표로 잡는다', () => {
@@ -184,6 +227,10 @@ describe('renderGauge', () => {
  * 프리뷰 생성. 200x100 · 144x144 에서 실제로 읽히는지는 눈으로만 확인할 수 있으므로
  * 모든 조합을 실제 픽셀 크기로 타일링한 컨택트시트를 만든다(ai-limits-plan.md §6).
  * 이건 검증이 아니라 검증 도구다 — 단정하지 않는다.
+ *
+ * ⚠ **레이아웃 판정에만 쓴다.** 컨택트시트를 그리는 브라우저는 Stream Deck 래스터라이저의
+ * 상위집합이라 기능 지원 문제는 여기서 드러나지 않는다(8자리 hex 가 그랬다). 그쪽은 위의
+ * 색 형식 불변식이 막는다.
  */
 describe('preview', () => {
   it('컨택트시트를 생성한다', () => {
