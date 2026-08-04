@@ -40,7 +40,8 @@
   - [x] 형식 4단계 3초 간격 순환: raw `<svg>` / base64 data URI / `charset=utf8` / PNG 경로(대조군)
   - [x] 프로브 활성화 + 플러그인 재시작 완료 (마커 `.svg-probe` 생성)
   - [ ] **액션을 다이얼에 올려 4단계 관찰** ← 플러그인 프로세스는 액션이 배치돼야 시작된다
-  - [ ] 키에서 `setImage` 로 반복
+  - [ ] 관찰 후 마커 삭제 + 재시작 — `rm com.sonky.c-ai-usage.sdPlugin/.svg-probe && streamdeck restart com.sonky.c-ai-usage`. 안 지우면 게이지 대신 프로브가 계속 돈다
+  - [ ] ~~키에서 `setImage` 로 반복~~ → **지금은 불가.** 매니페스트가 `Controllers: ["Encoder"]` 뿐이라 키에 올릴 수 없다. Phase 4(Keypad)로 이월하거나 임시로 매니페스트를 고쳐야 한다
   - [ ] 실패 시 → 도넛 포기하고 네이티브 `bar`/`gbar` 로 전환할지 결정 (요구사항 4 축소)
 
 ### 워크스페이스 (§10)
