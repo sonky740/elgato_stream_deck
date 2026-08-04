@@ -8,7 +8,7 @@ import streamDeck, {
 } from '@elgato/streamdeck';
 
 import { renderGauge, type RenderOptions } from '../render/gauge';
-import { probeEnabled, probeStages } from '../render/probe';
+import { PROBE_INTERVAL_MS, probeEnabled, probeStages } from '../render/probe';
 import type { UsageService } from '../usage/service';
 import type { UsageViewModel } from '../usage/types';
 
@@ -98,8 +98,8 @@ export class ClaudeUsageAction extends SingletonAction {
 }
 
 /**
- * 게이트 1 프로브를 3초 간격으로 순환시킨다. 각 단계에서 무엇을 보냈는지 로그에 남으므로
- * 화면에 무엇이 나왔는지와 대조하면 어느 인코딩·어느 SVG 기능이 되는지 판정된다.
+ * 게이트 1 프로브를 순환시킨다. 각 SVG 는 자기 단계 번호를 ASCII 로 표시하므로 화면만 보고도
+ * 어느 인코딩이 그려졌는지 알 수 있다 — 로그와 대조할 필요가 없다.
  */
 function startProbe(action: GaugeAction): () => void {
   const stages = probeStages();
@@ -117,7 +117,7 @@ function startProbe(action: GaugeAction): () => void {
     done.catch((err: unknown) => streamDeck.logger.warn(`[게이트1] ${stage.name} 전송 실패`, err));
   };
   send();
-  const timer = setInterval(send, 3000);
+  const timer = setInterval(send, PROBE_INTERVAL_MS);
   return () => clearInterval(timer);
 }
 
