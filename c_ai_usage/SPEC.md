@@ -4,11 +4,11 @@
 
 Claude 구독의 **5시간 창과 주간 창 사용량을 동시에** 다이얼·키에 게이지로 표시한다. 수치는 계정 범위·서버 계산 값만 쓴다 — 여러 기기에서 AI 를 쓰기 때문에 한 기기의 로컬 사용량 로그로는 합산이 성립하지 않는다.
 
-Codex 는 Phase 3 이다. 근거·실측 계약·페이즈 계획은 [../ai-limits-plan.md](../ai-limits-plan.md), 실행 상태는 [../ai-limits-checklist.md](../ai-limits-checklist.md).
+Codex 도 포함한다 — 단 OpenAI 가 2026-07-13 이후 주간 창만 반환하므로 **Codex 의 5HR 슬롯은 공란이 정상**이다. 근거·실측 계약·페이즈 계획은 [../ai-limits-plan.md](../ai-limits-plan.md), 실행 상태는 [../ai-limits-checklist.md](../ai-limits-checklist.md).
 
 ## Features
 
-- **Claude Usage** 액션 — 다이얼(터치스트립 200×100) / 키(144×144). 5H · WK 두 게이지 + 퍼센티지.
+- **Claude Usage** · **Codex Usage** 액션 — 다이얼(터치스트립 200×100) / 키(144×144). 5H · WK 두 게이지 + 퍼센티지. 배관은 `actions/gauge-action.ts` 공통, 프로바이더 차이는 주입된 서비스 뒤에 있다.
 - 차트 **도넛 / 가로 바**, 기준 **사용량 / 남은양** — Property Inspector 에서 인스턴스별로 고른다. 기본값은 `donut` + `used`.
 - 갱신 주기는 **전역 설정**(60~3600s, 기본 300s) — 프로바이더 공유 자원이라 인스턴스별로 두면 요청률이 곱해진다.
 - 2단 읽기: Claude Code statusline 캐시가 신선하면 네트워크 0, 아니면 계정 API 직접 폴링.

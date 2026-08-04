@@ -157,15 +157,15 @@
 
 ## Phase 3 — Codex (§4.2)
 
-- [ ] `usage/codex.ts` — `GET https://chatgpt.com/backend-api/wham/usage`
-- [ ] **명시적 non-default User-Agent** (Cloudflare 봇 게이트)
-- [ ] `content-type` 선검사 → HTML 챌린지를 별도 상태로
-- [ ] PII 제거를 파싱 경계 코드 가드로 — `email`·`user_id`·`account_id` 가 로그·캐시에 닿지 않음
-- [ ] `reset_at`(epoch 초) 사용, 드리프트하는 `reset_after_seconds` 아님
-- [ ] `credits.balance` 가 문자열임을 처리
-- [ ] JWT `exp` 로컬 디코드로 만료 판정 (auth.json 에 만료 필드 없음)
-- [ ] 5HR 공란 컴포지션 실기기 확인 — ⚠ 이 페이즈 완료 후에도 두 숫자가 다 뜨는 건 Claude 뿐
-- [ ] Codex 액션 아이콘 애셋
+- [x] `usage/codex.ts` — `GET https://chatgpt.com/backend-api/wham/usage` (라이브 200 확인)
+- [x] **명시적 non-default User-Agent** — 자기 UA `c-ai-usage/0.1.0` 로 라이브 요청이 200 + `application/json` (챌린지 없음)
+- [x] `content-type` 선검사 → HTML 챌린지를 `blocked` 로 (테스트 포함)
+- [x] PII 제거를 파싱 경계 코드 가드로 — `parseUsage` 가 숫자만 뷰모델로 옮긴다. `email` 을 넣은 본문으로 뷰모델에 안 새는지 단정하는 테스트 포함
+- [x] `reset_at`(epoch 초) 사용, 드리프트하는 `reset_after_seconds` 아님 — 2026년이 나오는지 단정
+- [x] ~~`credits.balance` 가 문자열임을 처리~~ → **해당 없음.** `credits`·`spend_control` 을 읽지 않는다(게이지에 필요한 건 `rate_limit` 뿐). 읽지 않는 필드의 파싱 함정은 만들 이유가 없다
+- [x] JWT `exp` 로컬 디코드로 만료 판정 — 만료 시 요청하지 않는지 단정
+- [ ] 5HR 공란 컴포지션 실기기 확인 — Codex 액션을 다이얼에 올려야 한다. ⚠ 이 페이즈 완료 후에도 두 숫자가 다 뜨는 건 Claude 뿐(라이브 재확인: `primary` 604800s / `secondary` null)
+- [x] Codex 액션 아이콘 애셋 — 플레이스홀더 6장(accent `#10a37f`, 렌더러의 codex 색과 동일)
 
 ## Phase 4 — Keypad (§6)
 
