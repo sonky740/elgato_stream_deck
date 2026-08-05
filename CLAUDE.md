@@ -64,7 +64,7 @@ streamdeck link com.sonky.media-controller.sdPlugin   # 플러그인을 Stream D
 streamdeck restart com.sonky.media-controller         # 플러그인 재시작(코드 변경 반영)
 streamdeck stop|s com.sonky.media-controller
 streamdeck validate com.sonky.media-controller.sdPlugin   # 매니페스트/레이아웃/이미지 스키마 검증
-streamdeck pack com.sonky.media-controller.sdPlugin       # 배포용 .streamDeckPlugin 생성
+streamdeck pack com.sonky.media-controller.sdPlugin       # 배포용 .streamDeckPlugin 생성 (⚠ manifest.json 을 자기 포맷으로 다시 쓴다 → 뒤에 npm run format)
 streamdeck list                               # 설치된 플러그인 목록
 ```
 
@@ -101,7 +101,7 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 - **README 그림은 레이아웃 JSON 에서 재구성한 것**이다([scripts/build-readme-shots.mjs](media_controller/scripts/build-readme-shots.mjs) → `media_controller/docs/dial.png`, 커밋됨). 이 플러그인은 `setFeedback`으로 값만 보내고 그리는 건 기기의 레이아웃 렌더러라 **실기기 캡처 외에는 진짜 렌더가 없다** — 그래서 [scripts/lib/dial-svg.mjs](media_controller/scripts/lib/dial-svg.mjs)가 [now-playing.json](media_controller/com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 rect·폰트·색을 읽어 같은 그림을 만든다(좌표를 스크립트에 베끼면 레이아웃을 고칠 때 그림만 옛것으로 남는다 — item 이 없으면 throw 한다). README·스토어 두 스크립트가 이 모듈을 공유한다 — 재구성을 파일마다 복사하면 같은 사고가 파일 단위로 생긴다. 재구성이라는 사실은 루트·플러그인 README 양쪽에 적혀 있으니 **캡처라고 바꿔 쓰지 않는다.** 배경을 굽는 이유는 c_ai_usage 스크린샷과 같다(투명 PNG 는 GitHub 라이트 모드에서 흰 글자가 사라진다).
 - **빌드 산출물**: `*.sdPlugin/bin/`은 rollup 출력이며 gitignore 대상. 소스는 `src/`만. 매니페스트 `CodePath`는 `bin/plugin.js`를 가리킨다.
 - **Node 런타임**은 Stream Deck 앱이 번들(매니페스트 `Nodejs.Version`)한다. 로컬 Node 버전과 무관하며, 앱이 7.1 미만이면 플러그인이 로드되지 않는다.
-- **vendored 네이티브 의존**: [vendor/mediaremote-adapter/](media_controller/com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/)의 perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)는 **gitignore 대상이 아니며 커밋된다**(self-contained 배포). `darwin.ts`는 `import.meta.url` 기준 `../vendor/...`로 경로를 해석한다 — 번들 레이아웃을 바꾸면 이 경로도 같이 바꿔야 한다. 프레임워크는 ad-hoc 서명이라 복사 시 서명이 유지돼야 로드된다(`codesign --verify`로 확인).
+- **vendored 네이티브 의존**: [vendor/mediaremote-adapter/](media_controller/com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/)의 perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)는 **gitignore 대상이 아니며 커밋된다**(self-contained 배포). `darwin.ts`는 `import.meta.url` 기준 `../vendor/...`로 경로를 해석한다 — 번들 레이아웃을 바꾸면 이 경로도 같이 바꿔야 한다. 프레임워크는 ad-hoc 서명이라 복사 시 서명이 유지돼야 로드된다(`codesign -dv` 로 `Signature=adhoc` 확인). ⚠ **프레임워크 레이아웃은 플랫이어야 한다**(`Versions/A` + 심볼릭 링크 없음) — `streamdeck pack` 이 최상위 `MediaRemoteAdapter` 심볼릭 링크를 아카이브에서 **누락**시키고, 그게 정확히 `mediaremote-adapter.pl` 이 `dl_load_file` 하는 경로다. `streamdeck link`(워킹트리 심볼릭) 로만 검증하면 이 실패가 안 보인다 — 패키지를 설치한 사용자만 `Setup needed` 를 본다. 확인법: pack → `unzip` → 추출본에 `perl … <framework> get` (exit 0).
 - **공용 tsconfig는 루트 base**: 공통 컴파일러 옵션은 루트 [tsconfig.base.json](tsconfig.base.json)에 모으고, 각 워크스페이스 [tsconfig.json](media_controller/tsconfig.json)은 `extends: "../tsconfig.base.json"` + 자기 `include`/`exclude`만 둔다. base가 `@tsconfig/node20`을 extends 하므로 그 의존성도 루트에 있다(툴체인 전체가 루트라 예외가 아니다). 새 플러그인은 같은 패턴으로 base를 extends 한다. rollup(`@rollup/plugin-typescript`)은 빌드 cwd(=워크스페이스)의 `tsconfig.json`을 자동 탐색하므로 파일명/위치를 바꾸면 안 된다.
 - **모노레포 hoist ↔ @types/node**: 플러그인 폴더의 `node_modules`는 비어 있고(`@types/node`가 루트 선언이라 이제 항상 그렇다) tsc가 node 타입(`process`/`Buffer`/`node:*`)을 자동 포함하지 못한다. base의 `"types": ["node"]`가 이를 해결한다(워크스페이스가 extends로 상속) — 빼면 빌드에 TS 경고가 쏟아진다.
 - **공용 lint 설정은 보호됨**: 루트 [eslint.config.mjs](eslint.config.mjs)·[.prettierrc.json](.prettierrc.json)은 `config-protection` 훅 대상이라 Write/Edit가 차단된다. 정당한 변경이면 `~/.claude/settings.json`에서 해당 훅을 잠시 비활성화 후 수정한다. 포매팅은 Prettier에 일임하고 ESLint는 `eslint-config-prettier`로 충돌 룰만 끈다.
@@ -122,7 +122,7 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 - **곡 정보**: 영속 `stream --no-diff --debounce=250` 프로세스를 한 번 띄우고 줄단위 JSON(`{"type":"data","diff":false,"payload":{…}}`)을 파싱해 최신 상태를 캐시. `payload`가 `{}`면 재생 없음(`null`). 키: `title`/`artist`/`album`/`playing`(bool)/`artworkData`(base64)+`artworkMimeType` → `data:` URI.
 - **제어**: 단발 `send <MRACommand>` — `2`=TogglePlayPause, `4`=NextTrack, `5`=PreviousTrack (`include/MediaRemoteAdapter.h`의 `MRACommand` enum).
 - **수명/orphan**: stream 프로세스가 죽으면 `#stream`을 비워 다음 폴링에 자연 재기동(self-heal). 플러그인 종료 시 `process.once('exit'|'SIGTERM'|'SIGINT')`에서 SIGTERM으로 자식 정리.
-- **엔타이틀먼트 확인**: `perl … <framework> test` (exit 0 = 정상).
+- **동작 확인**: `perl … <framework> get` (exit 0 = 프레임워크 로드 + MediaRemote 도달; 재생 중이 아니면 `null` 을 찍는다). `test` 서브커맨드는 vendor 에 없는 `MediaRemoteAdapterTestClient` 경로를 요구해 항상 실패한다.
 
 ### 프레임워크 재빌드 (cmake 불필요)
 
@@ -132,7 +132,7 @@ cd media_controller
 ./scripts/build-mediaremote-adapter.sh v0.7.6     # 특정 태그
 ```
 
-clang으로 유니버설(x86_64+arm64) 컴파일 → ad-hoc 서명 → `vendor/`에 배치 → `test`로 검증. 외부 서드파티 소스를 컴파일·실행하므로 자동 권한 모드에서 차단될 수 있다(명시적 승인 필요).
+clang으로 유니버설(x86_64+arm64) 컴파일 → **플랫 레이아웃**으로 배치 → 바이너리 ad-hoc 서명 → `vendor/` 에 복사 → `get`으로 검증. 외부 서드파티 소스를 컴파일·실행하므로 자동 권한 모드에서 차단될 수 있다(명시적 승인 필요).
 
 ### Windows 브리지 동작 (windows.ts) — ⚠ 미검증
 

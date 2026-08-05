@@ -85,7 +85,16 @@ The perl script and `MediaRemoteAdapter.framework` (universal, ad-hoc signed) ar
 ./scripts/build-mediaremote-adapter.sh v0.7.6   # a specific tag
 ```
 
-It compiles a universal binary with clang, ad-hoc signs it, places it in `vendor/` and verifies it with `test` (no cmake needed). Because the signature is ad-hoc, it must survive the copy for the framework to load.
+It compiles a universal binary with clang, ad-hoc signs it, places it in `vendor/` and verifies it with `get` (no cmake needed). Because the signature is ad-hoc, it must survive the copy for the framework to load.
+
+The framework layout is **flat on purpose** — no `Versions/A`, no symlinks. `streamdeck pack` leaves the framework's top-level `MediaRemoteAdapter` symlink out of the archive, and that is the path the perl script loads, so a packaged plugin would report `Setup needed` even though a `streamdeck link`ed working tree runs fine. After changing anything under `vendor/`, verify the **packaged** copy, not just the linked one:
+
+```bash
+npx streamdeck pack com.sonky.media-controller.sdPlugin -o /tmp/pack -f
+unzip -q /tmp/pack/com.sonky.media-controller.streamDeckPlugin -d /tmp/unpacked
+V=/tmp/unpacked/com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter
+/usr/bin/perl "$V/mediaremote-adapter.pl" "$V/MediaRemoteAdapter.framework" get   # exit 0
+```
 
 ### Windows — implemented, unverified, not declared
 
