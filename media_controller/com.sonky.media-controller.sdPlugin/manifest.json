@@ -8,15 +8,15 @@
       "Name": "Now Playing",
       "UUID": "com.sonky.media-controller.now-playing",
       "Icon": "imgs/actions/now-playing/icon",
-      "Tooltip": "현재 재생 중인 곡을 표시하고 제어합니다. 다이얼: 회전=이전/다음, 누름/터치=재생·일시정지. 키: 앨범아트·제목 표시, 누름=재생·일시정지.",
+      "Tooltip": "Shows and controls the current track. Dial: rotate = previous/next, push or touch = play/pause. Key: shows album art and title, press = play/pause.",
       "Controllers": ["Encoder", "Keypad"],
       "Encoder": {
         "Icon": "imgs/actions/now-playing/encoder-icon",
         "layout": "layouts/now-playing.json",
         "TriggerDescription": {
-          "Rotate": "이전 / 다음 곡",
-          "Push": "재생 / 일시정지",
-          "Touch": "재생 / 일시정지"
+          "Rotate": "Previous / next track",
+          "Push": "Play / pause",
+          "Touch": "Play / pause"
         }
       },
       "States": [
@@ -29,7 +29,7 @@
       "Name": "Next Track",
       "UUID": "com.sonky.media-controller.next",
       "Icon": "imgs/actions/next/icon",
-      "Tooltip": "다음 곡으로 넘깁니다.",
+      "Tooltip": "Skips to the next track.",
       "Controllers": ["Keypad"],
       "States": [
         {
@@ -41,7 +41,7 @@
       "Name": "Previous Track",
       "UUID": "com.sonky.media-controller.previous",
       "Icon": "imgs/actions/previous/icon",
-      "Tooltip": "이전 곡으로 넘깁니다.",
+      "Tooltip": "Goes back to the previous track.",
       "Controllers": ["Keypad"],
       "States": [
         {
@@ -53,7 +53,7 @@
   "Category": "Media Controller",
   "CategoryIcon": "imgs/plugin/category-icon",
   "CodePath": "bin/plugin.js",
-  "Description": "OS 미디어 세션을 통해 현재 재생 중인 곡을 표시하고 제어하는 Stream Deck + 플러그인.",
+  "Description": "Stream Deck + plugin that shows and controls the current track through the OS media session.",
   "Icon": "imgs/plugin/marketplace",
   "SDKVersion": 3,
   "Software": {

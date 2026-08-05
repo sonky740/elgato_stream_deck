@@ -113,7 +113,7 @@ export class NowPlayingAction extends SingletonAction {
       this.#lastSig.set(action.id, sig);
 
       if (np === null) {
-        await this.#render(action, '재생 없음', '', '', undefined);
+        await this.#render(action, streamDeck.i18n.t('Nothing playing'), '', '', undefined);
         return;
       }
       await this.#render(action, np.title, np.artist, np.album, np.artworkDataUri);
@@ -154,11 +154,15 @@ export class NowPlayingAction extends SingletonAction {
     const onFail = (e: unknown): void => {
       streamDeck.logger.warn('에러 상태 렌더 실패', e);
     };
+    // 문구 키는 영문 원문이다 — `ko.json` 의 `Localization` 이 한국어로 덮고, 그 밖의 언어는
+    // 파일이 없어 키가 그대로 나온다(= 읽히는 영어). 키에 점을 쓰면 dotted path 로 해석돼
+    // 조용히 번역이 안 되므로 `CLAUDE.md` 는 키가 아니라 한국어 값 쪽에만 있다.
+    const title = streamDeck.i18n.t('Setup needed');
     if (action.isDial()) {
       action
         .setFeedback({
-          title: '설정 필요',
-          artist: 'CLAUDE.md 참고',
+          title,
+          artist: streamDeck.i18n.t('See setup guide'),
           album: '',
           albumArt: { value: FALLBACK_ART },
         })
@@ -166,6 +170,6 @@ export class NowPlayingAction extends SingletonAction {
       return;
     }
     action.setImage(undefined).catch(onFail);
-    action.setTitle('설정 필요').catch(onFail);
+    action.setTitle(title).catch(onFail);
   }
 }

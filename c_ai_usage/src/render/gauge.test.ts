@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { renderGauge, type Basis, type ChartType, type RenderOptions, type Surface } from './gauge';
+import type { Lang } from '../i18n';
 import { DEFAULT_THRESHOLDS } from '../settings';
 import type { Provider, SourceState, UsageViewModel, UsageWindow } from '../usage/types';
 
@@ -46,13 +47,16 @@ const RISK_PAIRS: readonly (readonly [number | null, number | null])[] = [
 ];
 
 /**
- * RenderOptions 를 기본 임계값으로 채운다. 임계값은 대부분의 테스트에서 관심사가 아니지만
+ * RenderOptions 를 기본 임계값·한국어로 채운다. 둘 다 대부분의 테스트에서 관심사가 아니지만
  * `renderGauge` 가 **필수**로 받는다 — 옵셔널로 두면 실제 호출부가 빠뜨려도 조용히 통한다.
+ *
+ * 기본을 `ko` 로 두는 이유는 아래 문구 단언들이 한국어 화면을 고정하기 때문이다. 영문 화면은
+ * `lang: 'en'` 을 명시하는 테스트가 따로 본다.
  */
 function opts(
   over: Partial<RenderOptions> & Pick<RenderOptions, 'surface' | 'chart' | 'basis'>,
 ): RenderOptions {
-  return { thresholds: DEFAULT_THRESHOLDS, ...over };
+  return { thresholds: DEFAULT_THRESHOLDS, lang: 'ko', ...over };
 }
 
 function vm(over: Partial<UsageViewModel> = {}): UsageViewModel {
@@ -64,6 +68,19 @@ function vm(over: Partial<UsageViewModel> = {}): UsageViewModel {
     ...over,
   };
 }
+
+const FAILURE_STATES: readonly Exclude<SourceState, 'ok' | 'stale'>[] = [
+  'loading',
+  'no-credential',
+  'expired',
+  'revoked',
+  'forbidden',
+  'unentitled',
+  'throttled',
+  'blocked',
+  'network',
+  'shape-changed',
+];
 
 describe('renderGauge', () => {
   it('네 조합 모두 캔버스 규격에 맞는 SVG 를 낸다', () => {
@@ -358,26 +375,14 @@ describe('renderGauge', () => {
   });
 
   it('실패 상태마다 서로 다른 문구를 낸다', () => {
-    const states: Exclude<SourceState, 'ok' | 'stale'>[] = [
-      'loading',
-      'no-credential',
-      'expired',
-      'revoked',
-      'forbidden',
-      'unentitled',
-      'throttled',
-      'blocked',
-      'network',
-      'shape-changed',
-    ];
-    const rendered = states.map((state) =>
+    const rendered = FAILURE_STATES.map((state) =>
       renderGauge(
         vm({ state }),
         opts({ surface: 'dial', chart: 'donut', basis: 'used' }),
         FIXED_NOW,
       ),
     );
-    expect(new Set(rendered).size).toBe(states.length);
+    expect(new Set(rendered).size).toBe(FAILURE_STATES.length);
   });
 
   it('stale 은 게이지를 유지하고 나이를 덧붙인다', () => {
@@ -440,6 +445,77 @@ describe('renderGauge', () => {
       FIXED_NOW,
     );
     expect(svg).toContain('데이터 없음');
+  });
+});
+
+describe('언어', () => {
+  it('lang: en 이면 실패 문구·공란 이유·나이가 전부 영문이다', () => {
+    const en = (over: Partial<UsageViewModel>): string =>
+      renderGauge(
+        vm(over),
+        opts({ surface: 'dial', chart: 'donut', basis: 'used', lang: 'en' }),
+        FIXED_NOW,
+      );
+    expect(en({ state: 'expired' })).toContain('Token expired');
+    expect(en({ slots: { fiveHour: null, week: null } })).toContain('No data');
+    expect(
+      en({ provider: 'codex', slots: { fiveHour: null, week: win('WK', 604800, 18) } }),
+    ).toContain('Weekly only');
+    expect(en({ state: 'stale', fetchedAtMs: FIXED_NOW - 8 * MIN })).toContain('8m ago');
+    expect(en({ state: 'stale', fetchedAtMs: FIXED_NOW - 3 * HOUR })).toContain('3h ago');
+  });
+
+  /**
+   * 한국어가 남으면 그 자리는 영어 사용자에게 읽히지 않는 채로 조용히 지나간다 — 문구를
+   * 하나 빠뜨리는 것이 이 변경에서 가장 만들기 쉬운 실패다. 전 상태 × 전 조합을 훑는다.
+   */
+  it('영문 렌더에 한국어가 한 글자도 남지 않는다', () => {
+    const cases: Partial<UsageViewModel>[] = [
+      {},
+      { state: 'stale', fetchedAtMs: FIXED_NOW - 8 * MIN },
+      { slots: { fiveHour: null, week: null } },
+      { provider: 'codex', slots: { fiveHour: null, week: win('WK', 604800, 18) } },
+      ...FAILURE_STATES.map((state) => ({ state })),
+    ];
+    for (const over of cases) {
+      for (const surface of ['dial', 'key'] as Surface[]) {
+        for (const chart of ['donut', 'bar'] as ChartType[]) {
+          const svg = renderGauge(
+            vm(over),
+            opts({ surface, chart, basis: 'used', lang: 'en' }),
+            FIXED_NOW,
+          );
+          expect(svg).not.toMatch(/[가-힣]/);
+        }
+      }
+    }
+  });
+
+  /**
+   * 영문 실패 화면의 폭 예산. `notice()` 는 clamp 없이 `text-anchor="middle"` 로 그리므로
+   * 넘치는 문구는 뷰포트가 조용히 잘라낸다 — 키(144px)가 구속 조건이다.
+   *
+   * 폭은 `clampLabel` 과 같은 휴리스틱(글자폭 ≈ 0.62 × size)으로 **추정**한다. 실기기 래스터
+   * 확인의 대체물이 아니라, 문구를 길게 고쳐 쓰는 순간 즉시 red 를 내는 가드다. 한국어는
+   * 글리프 폭이 달라(≈1.0em) 이 추정이 맞지 않고 실기기에서 이미 확인됐으므로 대상이 아니다.
+   */
+  it('영문 실패 문구가 키 폭 예산 안에 있다', () => {
+    const budgetPx = 136;
+    for (const state of FAILURE_STATES) {
+      for (const provider of ['claude', 'codex'] as Provider[]) {
+        const svg = renderGauge(
+          vm({ provider, state }),
+          opts({ surface: 'key', chart: 'donut', basis: 'used', lang: 'en' }),
+          FIXED_NOW,
+        );
+        for (const [, size, content] of svg.matchAll(
+          /<text [^>]*font-size="(\d+)"[^>]*>([^<]+)<\/text>/g,
+        )) {
+          const widthPx = content.length * Number(size) * 0.62;
+          expect(widthPx, `${state}/${provider}: "${content}"`).toBeLessThanOrEqual(budgetPx);
+        }
+      }
+    }
   });
 });
 
@@ -531,20 +607,24 @@ describe('preview', () => {
     rmSync(PREVIEW_DIR, { recursive: true, force: true });
     mkdirSync(PREVIEW_DIR, { recursive: true });
     const rows: string[] = [];
-    for (const surface of ['dial', 'key'] as Surface[]) {
-      for (const chart of ['donut', 'bar'] as ChartType[]) {
-        for (const basis of ['used', 'remaining'] as Basis[]) {
-          const cells = cases.map((c) => {
-            const svg = renderGauge(c.vm, opts({ surface, chart, basis }), FIXED_NOW);
-            writeFileSync(
-              path.join(PREVIEW_DIR, `${surface}-${chart}-${basis}-${c.name}.svg`),
-              svg,
+    // 언어를 가장 바깥 축으로 둔다 — 영문은 문구 폭이 달라 같은 조합에서도 레이아웃 판정이
+    // 따로 필요하다. README 스크린샷은 `en-` 세트를 입력으로 쓴다(scripts/build-readme-shots.mjs).
+    for (const lang of ['ko', 'en'] as Lang[]) {
+      for (const surface of ['dial', 'key'] as Surface[]) {
+        for (const chart of ['donut', 'bar'] as ChartType[]) {
+          for (const basis of ['used', 'remaining'] as Basis[]) {
+            const cells = cases.map((c) => {
+              const svg = renderGauge(c.vm, opts({ surface, chart, basis, lang }), FIXED_NOW);
+              writeFileSync(
+                path.join(PREVIEW_DIR, `${lang}-${surface}-${chart}-${basis}-${c.name}.svg`),
+                svg,
+              );
+              return `<figure><figcaption>${c.name}</figcaption><div class="sd">${svg}</div></figure>`;
+            });
+            rows.push(
+              `<section><h2>${lang} / ${surface} / ${chart} / ${basis}</h2><div class="row">${cells.join('')}</div></section>`,
             );
-            return `<figure><figcaption>${c.name}</figcaption><div class="sd">${svg}</div></figure>`;
-          });
-          rows.push(
-            `<section><h2>${surface} / ${chart} / ${basis}</h2><div class="row">${cells.join('')}</div></section>`,
-          );
+          }
         }
       }
     }

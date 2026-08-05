@@ -1,3 +1,4 @@
+import type { Lang } from '../i18n';
 import type { Provider, SourceState, UsageViewModel, UsageWindow } from '../usage/types';
 
 export type Surface = 'dial' | 'key';
@@ -19,6 +20,8 @@ export type RenderOptions = {
   basis: Basis;
   /** 필수다 — 옵셔널로 두면 호출부가 빠뜨려도 조용히 기본값으로 그려져 설정이 먹지 않는다. */
   thresholds: Thresholds;
+  /** 같은 이유로 필수다 — 기본값을 두면 호출부가 빠뜨려도 조용히 한 언어로만 그려진다. */
+  lang: Lang;
 };
 
 const CANVAS: Record<Surface, { w: number; h: number }> = {
@@ -68,26 +71,73 @@ const CLI: Record<Provider, string> = { claude: 'Claude Code', codex: 'Codex CLI
 
 type Notice = { title: string; hint: string };
 
-/**
- * 게이지 대신 띄우는 화면의 문구. 상태마다 제목이 다르고 한 줄로 다음 할 일을 말한다.
- *
- * 이때 게이지를 **아예 그리지 않는다** — "여유 있음"과 "플러그인 고장"이 닮으면 사용자가
- * 분간할 수 없다(계획서 §8).
- */
-const NOTICE: Record<Exclude<SourceState, 'ok' | 'stale'>, Notice> = {
-  loading: { title: '불러오는 중', hint: '첫 응답을 기다려요' },
-  'no-credential': { title: '로그인 필요', hint: '{cli} 에서 로그인' },
-  expired: { title: '재로그인 필요', hint: '토큰이 만료됐어요' },
-  revoked: { title: '재인증 필요', hint: '토큰이 무효화됐어요' },
-  forbidden: { title: '권한 부족', hint: 'user:profile scope 필요' },
-  unentitled: { title: '권한 없음', hint: '빈 응답 · scope 확인' },
-  throttled: { title: '일시 제한', hint: '요청이 많아요 · 곧 재시도' },
-  blocked: { title: '차단됨', hint: 'Cloudflare 챌린지' },
-  network: { title: '연결 실패', hint: '네트워크를 확인해요' },
-  'shape-changed': { title: '형식 변경', hint: '응답 구조가 달라졌어요' },
+type Strings = {
+  /**
+   * 게이지 대신 띄우는 화면의 문구. 상태마다 제목이 다르고 한 줄로 다음 할 일을 말한다.
+   *
+   * 이때 게이지를 **아예 그리지 않는다** — "여유 있음"과 "플러그인 고장"이 닮으면 사용자가
+   * 분간할 수 없다(계획서 §8).
+   */
+  notice: Record<Exclude<SourceState, 'ok' | 'stale'>, Notice>;
+  noData: Notice;
+  /** Codex 의 5H 공란은 고장이 아니라 벤더 계약이다(SPEC §Purpose) — 그렇다고 알려준다. */
+  weeklyOnly: string;
+  /** last-good 의 나이. 헤더 오른쪽 끝에 붙으므로 짧아야 한다. */
+  age: { justNow: string; minutes: (n: number) => string; hours: (n: number) => string };
 };
 
-const NO_DATA: Notice = { title: '데이터 없음', hint: '표시할 창이 없어요' };
+/**
+ * 언어별 화면 문구. 창 라벨(`5H`·`WK·Opus`)은 서버 응답에서 파생하므로 여기 없다.
+ *
+ * ⚠ **영문은 번역이 아니라 폭 예산에 맞춰 쓴 문구다.** {@link notice} 는 clamp 없이
+ * `text-anchor="middle"` 로 그려서 키(144px)에서 넘치면 뷰포트가 조용히 잘라낸다 — 제목 15자,
+ * 힌트 20자(`{cli}` 치환 후)가 상한이고 `gauge.test.ts` 가 그 불변식을 지킨다. 문구를 손볼
+ * 때는 뜻보다 길이가 먼저 걸린다.
+ */
+const STRINGS: Record<Lang, Strings> = {
+  ko: {
+    notice: {
+      loading: { title: '불러오는 중', hint: '첫 응답을 기다려요' },
+      'no-credential': { title: '로그인 필요', hint: '{cli} 에서 로그인' },
+      expired: { title: '재로그인 필요', hint: '토큰이 만료됐어요' },
+      revoked: { title: '재인증 필요', hint: '토큰이 무효화됐어요' },
+      forbidden: { title: '권한 부족', hint: 'user:profile scope 필요' },
+      unentitled: { title: '권한 없음', hint: '빈 응답 · scope 확인' },
+      throttled: { title: '일시 제한', hint: '요청이 많아요 · 곧 재시도' },
+      blocked: { title: '차단됨', hint: 'Cloudflare 챌린지' },
+      network: { title: '연결 실패', hint: '네트워크를 확인해요' },
+      'shape-changed': { title: '형식 변경', hint: '응답 구조가 달라졌어요' },
+    },
+    noData: { title: '데이터 없음', hint: '표시할 창이 없어요' },
+    weeklyOnly: '주간만 제공',
+    age: {
+      justNow: '방금',
+      minutes: (n) => `${n}분 전`,
+      hours: (n) => `${n}시간 전`,
+    },
+  },
+  en: {
+    notice: {
+      loading: { title: 'Loading', hint: 'Waiting for data' },
+      'no-credential': { title: 'Sign-in needed', hint: 'Log in: {cli}' },
+      expired: { title: 'Token expired', hint: 'Log in again' },
+      revoked: { title: 'Token revoked', hint: 'Re-authorize' },
+      forbidden: { title: 'Missing scope', hint: 'Needs user:profile' },
+      unentitled: { title: 'No access', hint: 'Empty · check scope' },
+      throttled: { title: 'Rate limited', hint: 'Retrying soon' },
+      blocked: { title: 'Blocked', hint: 'Cloudflare challenge' },
+      network: { title: 'No connection', hint: 'Check your network' },
+      'shape-changed': { title: 'Format changed', hint: 'Unexpected response' },
+    },
+    noData: { title: 'No data', hint: 'No windows to show' },
+    weeklyOnly: 'Weekly only',
+    age: {
+      justNow: 'just now',
+      minutes: (n) => `${n}m ago`,
+      hours: (n) => `${n}h ago`,
+    },
+  },
+};
 
 /** 화면상 자리 하나. 슬롯이 승격돼도 자리의 기하는 그대로다. */
 type Slot = {
@@ -132,19 +182,20 @@ export function renderGauge(vm: UsageViewModel, opts: RenderOptions, nowMs: numb
 }
 
 function body(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
+  const strings = STRINGS[opts.lang];
   if (vm.state !== 'ok' && vm.state !== 'stale') {
     // loading 은 실패가 아니다 — 같은 판을 쓰되 accent 경고 배지를 달지 않는다.
     return notice(
       opts.surface,
-      NOTICE[vm.state],
+      strings.notice[vm.state],
       vm.provider,
       vm.state === 'loading' ? 'calm' : 'alert',
     );
   }
   if (vm.slots.fiveHour === null && vm.slots.week === null) {
-    return notice(opts.surface, NO_DATA, vm.provider, 'calm');
+    return notice(opts.surface, strings.noData, vm.provider, 'calm');
   }
-  const [primary, secondary] = lead(vm, opts.basis, nowMs);
+  const [primary, secondary] = lead(vm, opts, nowMs);
   const ctx: Ctx = { basis: opts.basis, provider: vm.provider, thresholds: opts.thresholds };
   if (opts.chart === 'donut') {
     return opts.surface === 'dial'
@@ -161,15 +212,15 @@ function body(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
  * Codex 는 항상 이 모양이라(2026-07-13 이후 주간만 반환) 큰 자리를 빈 구멍으로 남기면
  * 아는 값을 작은 자리에 밀어 넣고 화면의 절반을 낭비한다.
  */
-function lead(vm: UsageViewModel, basis: Basis, nowMs: number): [Slot, Slot] {
-  const five = slotOf('5H', vm.slots.fiveHour, basis, nowMs, fiveHourNote(vm));
+function lead(vm: UsageViewModel, opts: RenderOptions, nowMs: number): [Slot, Slot] {
+  const { basis } = opts;
+  const five = slotOf('5H', vm.slots.fiveHour, basis, nowMs, fiveHourNote(vm, opts.lang));
   const week = slotOf('WK', vm.slots.week, basis, nowMs, null);
   return five.v === null && week.v !== null ? [week, five] : [five, week];
 }
 
-/** Codex 의 5H 공란은 고장이 아니라 벤더 계약이다(SPEC §Purpose) — 그렇다고 알려준다. */
-function fiveHourNote(vm: UsageViewModel): string | null {
-  return vm.provider === 'codex' && vm.slots.fiveHour === null ? '주간만 제공' : null;
+function fiveHourNote(vm: UsageViewModel, lang: Lang): string | null {
+  return vm.provider === 'codex' && vm.slots.fiveHour === null ? STRINGS[lang].weeklyOnly : null;
 }
 
 function slotOf(
@@ -194,7 +245,8 @@ function slotOf(
 function header(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
   const g = opts.surface === 'dial' ? { x: 10, y: 14, endX: 190 } : { x: 12, y: 15, endX: 132 };
   const name = vm.provider === 'claude' ? 'CLAUDE' : 'CODEX';
-  const note = vm.state === 'stale' && vm.fetchedAtMs !== null ? age(nowMs - vm.fetchedAtMs) : '';
+  const note =
+    vm.state === 'stale' && vm.fetchedAtMs !== null ? age(nowMs - vm.fetchedAtMs, opts.lang) : '';
   return [
     // 프로바이더 점. 두 액션을 나란히 올렸을 때 이름을 읽기 전에 어느 쪽인지 알게 한다.
     `<circle cx="${g.x + 3}" cy="${g.y - 3.5}" r="3" fill="${ACCENT[vm.provider]}"/>`,
@@ -537,12 +589,13 @@ function fmt(ms: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function age(ms: number): string {
+function age(ms: number, lang: Lang): string {
+  const { justNow, minutes: fmtMinutes, hours } = STRINGS[lang].age;
   const minutes = Math.floor(ms / MIN);
   if (minutes < 1) {
-    return '방금';
+    return justNow;
   }
-  return minutes < 60 ? `${minutes}분 전` : `${Math.floor(minutes / 60)}시간 전`;
+  return minutes < 60 ? fmtMinutes(minutes) : hours(Math.floor(minutes / 60));
 }
 
 function round(n: number): number {

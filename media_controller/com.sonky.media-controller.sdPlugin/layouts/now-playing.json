@@ -26,7 +26,7 @@
       "alignment": "left",
       "color": "#9aa0a6",
       "text-overflow": "ellipsis",
-      "value": "연결 대기 중"
+      "value": "Connecting"
     },
     {
       "key": "album",

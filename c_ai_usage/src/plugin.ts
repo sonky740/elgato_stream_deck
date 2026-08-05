@@ -2,6 +2,7 @@ import streamDeck from '@elgato/streamdeck';
 
 import { ClaudeUsageAction } from './actions/claude-usage';
 import { CodexUsageAction } from './actions/codex-usage';
+import { resolveLang, setLang } from './i18n';
 import { resolvePollMs, type GlobalSettings } from './settings';
 import { ClaudeSource } from './usage/claude';
 import { CodexSource } from './usage/codex';
@@ -46,5 +47,9 @@ streamDeck.settings.onDidReceiveGlobalSettings<GlobalSettings>((ev) => {
 });
 
 await streamDeck.connect();
+
+// 언어는 connect 이후에만 읽을 수 있다(`info` 접근이 그 전엔 throw). 첫 렌더는 액션이 나타난
+// 뒤이므로 이 순서로 늦지 않는다. 앱 언어 변경은 플러그인 재시작으로만 반영된다.
+setLang(resolveLang(streamDeck.i18n.language));
 
 applyPollInterval(await streamDeck.settings.getGlobalSettings<GlobalSettings>());

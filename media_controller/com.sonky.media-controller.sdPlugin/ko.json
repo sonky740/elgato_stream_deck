@@ -1,0 +1,24 @@
+{
+  "Description": "OS 미디어 세션을 통해 현재 재생 중인 곡을 표시하고 제어하는 Stream Deck + 플러그인.",
+  "com.sonky.media-controller.now-playing": {
+    "Tooltip": "현재 재생 중인 곡을 표시하고 제어합니다. 다이얼: 회전=이전/다음, 누름/터치=재생·일시정지. 키: 앨범아트·제목 표시, 누름=재생·일시정지.",
+    "Encoder": {
+      "TriggerDescription": {
+        "Rotate": "이전 / 다음 곡",
+        "Push": "재생 / 일시정지",
+        "Touch": "재생 / 일시정지"
+      }
+    }
+  },
+  "com.sonky.media-controller.next": {
+    "Tooltip": "다음 곡으로 넘깁니다."
+  },
+  "com.sonky.media-controller.previous": {
+    "Tooltip": "이전 곡으로 넘깁니다."
+  },
+  "Localization": {
+    "Nothing playing": "재생 없음",
+    "Setup needed": "설정 필요",
+    "See setup guide": "CLAUDE.md 참고"
+  }
+}

@@ -8,6 +8,11 @@
       이미 무시하므로 보호된 설정 파일을 건드릴 필요도 없다.
     -->
     <script src="../vendor/sdpi-components.js"></script>
+    <!--
+      문구 테이블. sdpi-components 뒤 · <body> 앞에서 동기 로드해야 한다 — 커스텀 엘리먼트가
+      업그레이드될 때 locales 가 이미 있어야 `__MSG_…__` 가 치환된다.
+    -->
+    <script src="i18n.js"></script>
     <style>
       /*
         sdpi-components 의 색 토큰은 각 컴포넌트의 :host 에만 선언돼 있어(--font-color 등)
@@ -41,25 +46,25 @@
     </style>
   </head>
   <body>
-    <sdpi-item label="차트">
+    <sdpi-item label="__MSG_chart__">
       <sdpi-radio
         setting="chart"
         default="donut"
         columns="2"
       >
-        <option value="donut">도넛</option>
-        <option value="bar">가로 바</option>
+        <option value="donut">__MSG_donut__</option>
+        <option value="bar">__MSG_bar__</option>
       </sdpi-radio>
     </sdpi-item>
 
-    <sdpi-item label="표시 기준">
+    <sdpi-item label="__MSG_basis__">
       <sdpi-radio
         setting="basis"
         default="used"
         columns="2"
       >
-        <option value="used">사용량</option>
-        <option value="remaining">남은양</option>
+        <option value="used">__MSG_used__</option>
+        <option value="remaining">__MSG_remaining__</option>
       </sdpi-radio>
     </sdpi-item>
 
@@ -70,7 +75,7 @@
       warnAt 을 critAt 까지 끌어내린다(도움말에 그렇게 적었다).
       value-type 기본값이 'string' 이므로 숫자 설정엔 반드시 명시한다.
     -->
-    <sdpi-item label="주의 임계">
+    <sdpi-item label="__MSG_warnAt__">
       <sdpi-select
         setting="warnAt"
         value-type="number"
@@ -80,13 +85,13 @@
         <option value="60">60%</option>
         <option value="70">70%</option>
         <option value="75">75%</option>
-        <option value="80">80% (권장)</option>
+        <option value="80">__MSG_pct80Recommended__</option>
         <option value="85">85%</option>
         <option value="90">90%</option>
       </sdpi-select>
     </sdpi-item>
 
-    <sdpi-item label="위험 임계">
+    <sdpi-item label="__MSG_critAt__">
       <sdpi-select
         setting="critAt"
         value-type="number"
@@ -95,7 +100,7 @@
         <option value="80">80%</option>
         <option value="85">85%</option>
         <option value="90">90%</option>
-        <option value="95">95% (권장)</option>
+        <option value="95">__MSG_pct95Recommended__</option>
         <option value="99">99%</option>
         <option value="100">100%</option>
       </sdpi-select>
@@ -107,38 +112,29 @@
       설정돼 있는지 알 수 없고, 폴링 간격에 초 단위 연속 자유도는 필요하지도 않다.
       value-type 기본값이 'string' 이므로 숫자 설정엔 반드시 명시한다.
     -->
-    <sdpi-item label="갱신 주기">
+    <sdpi-item label="__MSG_pollInterval__">
       <sdpi-select
         setting="pollIntervalSec"
         global
         value-type="number"
         default="300"
       >
-        <option value="60">1분</option>
-        <option value="180">3분</option>
-        <option value="300">5분 (권장)</option>
-        <option value="600">10분</option>
-        <option value="1800">30분</option>
-        <option value="3600">1시간</option>
+        <option value="60">__MSG_min1__</option>
+        <option value="180">__MSG_min3__</option>
+        <option value="300">__MSG_min5Recommended__</option>
+        <option value="600">__MSG_min10__</option>
+        <option value="1800">__MSG_min30__</option>
+        <option value="3600">__MSG_hour1__</option>
       </sdpi-select>
     </sdpi-item>
 
+    <!-- 도움말은 sdpi 컴포넌트가 아니라 `__MSG_` 가 닿지 않는다 — ui/i18n.js 가 채운다. -->
     <details class="help">
-      <summary>도움말</summary>
-      <p>
-        <b>주의 임계</b> 이상은 amber, <b>위험 임계</b> 이상은 red 로 그립니다. 남은양 기준에서는
-        임계가 뒤집혀 <b>남은 20%</b> 와 <b>사용 80%</b> 가 같은 색입니다. 주의 임계를 위험 임계보다
-        높게 고르면 위험 임계에 맞춰지고 amber 단계가 없어집니다.
-      </p>
-      <p>
-        수치는 <b>Claude 계정에서 직접</b> 읽어옵니다 — 기기별 로컬 기록이 아니라 계정 전체
-        사용량이므로 여러 기기에서 쓴 양이 합산됩니다.
-      </p>
-      <p>
-        이 기기에 <b>Claude Code 로그인</b>이 필요합니다. <b>재로그인 필요</b>가 보이면 Claude Code
-        를 한 번 실행하면 자동으로 복구됩니다.
-      </p>
-      <p>빈 칸(<b>—</b>)은 0% 가 아니라 <b>값을 모른다</b>는 뜻입니다.</p>
+      <summary data-i18n="help"></summary>
+      <p data-i18n="helpThresholds"></p>
+      <p data-i18n="helpSourceClaude"></p>
+      <p data-i18n="helpLoginClaude"></p>
+      <p data-i18n="helpBlank"></p>
     </details>
   </body>
 </html>

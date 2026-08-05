@@ -11,6 +11,7 @@ import streamDeck, {
   type WillDisappearEvent,
 } from '@elgato/streamdeck';
 
+import { currentLang } from '../i18n';
 import { renderGauge } from '../render/gauge';
 import { PROBE_INTERVAL_MS, probeEnabled, probeStages } from '../render/probe';
 import {
@@ -194,6 +195,7 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
         chart: resolveChart(settings),
         basis: resolveBasis(settings),
         thresholds: resolveThresholds(settings),
+        lang: currentLang(),
       },
       Date.now(),
     );
