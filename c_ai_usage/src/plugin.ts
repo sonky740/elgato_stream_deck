@@ -32,7 +32,7 @@ const options = { intervalMs: resolvePollMs(undefined), staleLimitMs: STALE_LIMI
 const claude = createUsageService(fakeSourceFromEnv('claude') ?? new ClaudeSource(), options);
 const codex = createUsageService(fakeSourceFromEnv('codex') ?? new CodexSource(), options);
 
-streamDeck.logger.info('svg encoding: base64 data URI (raw SVG 는 pixmap 에서 안 그려짐)');
+streamDeck.logger.info('svg encoding: base64 data URI (raw SVG is not drawn in pixmaps)');
 streamDeck.actions.registerAction(new ClaudeUsageAction(claude));
 streamDeck.actions.registerAction(new CodexUsageAction(codex));
 

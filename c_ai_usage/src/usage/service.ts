@@ -133,12 +133,12 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
             },
       );
       failures += 1;
-      streamDeck.logger.warn(`${source.provider} usage: ${result.state} (연속 ${failures}회)`);
+      streamDeck.logger.warn(`${source.provider} usage: ${result.state} (${failures} in a row)`);
       schedule(backoffMs());
     } catch (err) {
       // 어댑터는 실패를 state 로 되돌리게 되어 있다. 여기 오는 건 예상 못 한 버그다.
       failures += 1;
-      streamDeck.logger.error(`${source.provider} usage 어댑터 예외`, err);
+      streamDeck.logger.error(`${source.provider} usage adapter threw`, err);
       emit({ provider: source.provider, slots: EMPTY_SLOTS, state: 'network', fetchedAtMs: null });
       schedule(backoffMs());
     } finally {

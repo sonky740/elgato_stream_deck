@@ -3,7 +3,8 @@
  * README 용 스크린샷 생성 — `docs/` 아래 4장(키·다이얼 × 도넛·바).
  *
  * 입력은 `npm test` 가 만드는 `preview/*.svg` 다. 렌더러를 다시 구현하지 않는 이유가 그것이다 —
- * 사본을 만들면 README 이미지가 실제 렌더와 따로 낡는다.
+ * 사본을 만들면 README 이미지가 실제 렌더와 따로 낡는다. preview 는 `ko-`/`en-` 두 세트인데
+ * README 가 영문이므로 **`en-` 쪽**을 쓴다.
  *
  * ⚠ **배경을 굽는다.** 런타임 SVG 는 캔버스를 칠하지 않으므로(SPEC §22) 그대로 PNG 로 만들면
  * 투명 배경이 되고, GitHub 라이트 모드의 흰 배경에서 판독 숫자(`#f4f4f5`)가 사라진다. 여기서
@@ -34,17 +35,17 @@ const SCALE = 2;
  * 하려는 것이다 — 한 장에 Codex 나 경고 상태를 섞으면 레이아웃 차이와 상태 차이가 뒤섞인다.
  */
 const SHOTS = [
-  { name: 'key-donut', src: 'key-donut-used-ok-both.svg', w: 144, h: 144 },
-  { name: 'key-bar', src: 'key-bar-used-ok-both.svg', w: 144, h: 144 },
-  { name: 'dial-donut', src: 'dial-donut-used-ok-both.svg', w: 200, h: 100 },
-  { name: 'dial-bar', src: 'dial-bar-used-ok-both.svg', w: 200, h: 100 },
+  { name: 'key-donut', src: 'en-key-donut-used-ok-both.svg', w: 144, h: 144 },
+  { name: 'key-bar', src: 'en-key-bar-used-ok-both.svg', w: 144, h: 144 },
+  { name: 'dial-donut', src: 'en-dial-donut-used-ok-both.svg', w: 200, h: 100 },
+  { name: 'dial-bar', src: 'en-dial-bar-used-ok-both.svg', w: 200, h: 100 },
 ];
 
 const missing = SHOTS.filter((s) => !existsSync(path.join(PREVIEW, s.src))).map((s) => s.src);
 if (missing.length > 0) {
   // 조용히 옛 preview/ 를 굽지 않는다 — 실제 렌더와 어긋난 README 는 보기에 멀쩡하다.
-  console.error(`preview SVG 가 없다: ${missing.join(', ')}`);
-  console.error('`npm test` 를 먼저 돌린다 — preview/ 는 테스트가 매번 비우고 다시 만든다.');
+  console.error(`missing preview SVG: ${missing.join(', ')}`);
+  console.error('run `npm test` first — the tests wipe and rebuild preview/ every time.');
   process.exit(1);
 }
 

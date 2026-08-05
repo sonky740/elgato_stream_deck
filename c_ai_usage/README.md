@@ -1,120 +1,124 @@
 # C AI Usage
 
-Claude · Codex 구독의 **5시간 창과 주간 창 사용량**을 Stream Deck + 의 다이얼·키에 게이지로 띄운다.
+Shows the **5-hour and weekly usage windows** of a Claude or Codex subscription as gauges on Stream Deck + dials and keys.
 
-수치는 **계정 범위 서버 계산값**만 쓴다 — 로컬 사용량 로그(`~/.claude/projects/**/*.jsonl` 등)는 쓰지 않는다. 여러 기기에서 AI 를 쓰면 한 기기의 로그로는 합산이 성립하지 않기 때문이다.
+The numbers are **account-wide values computed by the server** only — local usage logs (`~/.claude/projects/**/*.jsonl` and friends) are never read. If you use AI from more than one machine, one machine's log cannot add up to the account total.
 
-## 이렇게 보인다
+## What it looks like
 
-키와 다이얼에 각각 올릴 수 있고, 차트는 **도넛**과 **세그먼트 바** 두 종류다. 네 장 모두 같은 값(5시간 창 37% · 주간 창 26%)이라 레이아웃만 다르다.
+You can place it on a key or a dial, and each supports two charts: a **donut** and a **segment bar**. All four images use the same values (5-hour window 37%, weekly window 26%), so only the layout differs.
 
 <table>
   <tr>
     <td></td>
-    <th>도넛</th>
-    <th>세그먼트 바</th>
+    <th>Donut</th>
+    <th>Segment bar</th>
   </tr>
   <tr>
-    <th align="left">키<br /><sub>144×144</sub></th>
-    <td><img src="docs/key-donut.png" width="144" alt="키 도넛 — 5시간 창 37% 가 대형 숫자, 주간 26% 가 하단 줄" /></td>
-    <td><img src="docs/key-bar.png" width="144" alt="키 세그먼트 바 — 5시간 창 37% 와 주간 26% 가 10칸 미터 두 줄" /></td>
+    <th align="left">Key<br /><sub>144×144</sub></th>
+    <td><img src="docs/key-donut.png" width="144" alt="key donut — 5-hour window 37% as the large number, weekly 26% on the bottom line" /></td>
+    <td><img src="docs/key-bar.png" width="144" alt="key segment bar — 5-hour window 37% and weekly 26% as two 10-cell meters" /></td>
   </tr>
   <tr>
-    <th align="left">다이얼<br /><sub>200×100</sub></th>
-    <td><img src="docs/dial-donut.png" width="200" alt="다이얼 도넛 — 같은 크기 링 2개가 나란히" /></td>
-    <td><img src="docs/dial-bar.png" width="200" alt="다이얼 세그먼트 바 — 10칸 미터 두 줄" /></td>
+    <th align="left">Dial<br /><sub>200×100</sub></th>
+    <td><img src="docs/dial-donut.png" width="200" alt="dial donut — two rings of the same size side by side" /></td>
+    <td><img src="docs/dial-bar.png" width="200" alt="dial segment bar — two 10-cell meters" /></td>
   </tr>
 </table>
 
-이미지의 어두운 배경은 **스트림덱 프로필 배경**이다 — 플러그인은 캔버스를 칠하지 않는다([알려진 한계](#알려진-한계)).
+The dark background in these images is the **Stream Deck profile background** — the plugin does not paint its canvas ([known limitations](#known-limitations)).
 
-## 요구사항
+## Requirements
 
-|                |                                                                             |
-| -------------- | --------------------------------------------------------------------------- |
-| Stream Deck 앱 | **7.1+** (매니페스트 `SDKVersion: 3`)                                       |
-| 하드웨어       | Stream Deck + (다이얼) 또는 키 있는 아무 모델                               |
-| OS             | macOS 12+ / Windows 10+ (⚠ Windows 는 **구현·미검증**)                      |
-| 로그인         | Claude 는 **Claude Code**, Codex 는 **Codex CLI** 에서 로그인돼 있어야 한다 |
+|                 |                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------- |
+| Stream Deck app | **7.1+** (manifest `SDKVersion: 3`)                                                   |
+| Hardware        | Stream Deck + (dials) or any model with keys                                          |
+| OS              | macOS 12+ / Windows 10+ (⚠ Windows is **implemented but unverified**)                 |
+| Sign-in         | Claude needs **Claude Code**, Codex needs the **Codex CLI**, logged in on this device |
 
-네이티브 바이너리 의존이 없다. Node 런타임은 Stream Deck 앱이 번들한다(로컬 Node 버전과 무관).
+No native binary dependencies. The Stream Deck app bundles the Node runtime, so your local Node version does not matter.
 
-## 설치
+## Language
 
-Marketplace 에 올린 플러그인이 아니라 로컬 설치다.
+Korean and English, chosen from the Stream Deck app language: Korean when the app is set to Korean, English for every other language. It is not a plugin setting.
+
+## Install
+
+This is a local install, not a Marketplace plugin.
 
 ```bash
-npm install                              # 저장소 루트에서 1회
+npm install                              # once, from the repository root
 npm run build -w c-ai-usage
 
 cd c_ai_usage
-npx streamdeck dev                                     # 서명 안 된 로컬 플러그인 허용 — 최초 1회
-npx streamdeck link com.sonky.c-ai-usage.sdPlugin      # Stream Deck 에 연결 — 최초 1회
+npx streamdeck dev                                     # allow unsigned local plugins — once
+npx streamdeck link com.sonky.c-ai-usage.sdPlugin      # link it into Stream Deck — once
 ```
 
-Stream Deck 앱의 액션 목록에 **C AI Usage** 카테고리가 생기고 `Claude Usage` · `Codex Usage` 두 액션을 다이얼이나 키에 올릴 수 있다.
+A **C AI Usage** category appears in the Stream Deck action list with two actions, `Claude Usage` and `Codex Usage`, that you can drop onto a dial or a key.
 
-배포용 패키지가 필요하면 `npx streamdeck pack com.sonky.c-ai-usage.sdPlugin`.
+For a distributable package: `npx streamdeck pack com.sonky.c-ai-usage.sdPlugin`.
 
-## 컨트롤
+## Controls
 
-| 조작                  | 동작                                                                    |
-| --------------------- | ----------------------------------------------------------------------- |
-| 키 누름               | 차트 순환 (도넛 ↔ 바)                                                   |
-| 다이얼 회전           | 회전 **방향**으로 차트 한 칸. 양끝에서 감싸므로 계속 돌리면 계속 바뀐다 |
-| 다이얼 누름 · 터치 탭 | 기준 전환 (사용량 ↔ 남은양)                                             |
+| Input                  | Action                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| Key press              | Cycle the chart (donut ↔ bar)                                                              |
+| Dial rotate            | Move one chart in the **direction** of the turn. It wraps, so turning on keeps it changing |
+| Dial press · touch tap | Switch the basis (used ↔ remaining)                                                        |
 
-회전은 400ms leading-edge throttle 이 걸려 있다 — 휙 돌려도 한 칸만 간다. 키는 누름을 차트에 쓰므로 기준 전환은 Property Inspector 에서 한다.
+Rotation is rate-limited by a 400 ms leading-edge throttle, so one flick moves exactly one step. On a key the press is already taken by the chart, so switch the basis in the Property Inspector.
 
-## 설정
+## Settings
 
-**인스턴스별** (액션마다 따로):
+**Per instance** (separate for each action):
 
-- 차트 — 도넛 / 바
-- 기준 — 사용량 / 남은양
-- 주의 임계 — 50 · 60 · 70 · 75 · 80 · 85 · 90% (기본 80)
-- 위험 임계 — 80 · 85 · 90 · 95 · 99 · 100% (기본 95)
+- Chart — donut / bar
+- Basis — used / remaining
+- Warn at — 50 · 60 · 70 · 75 · 80 · 85 · 90% (default 80)
+- Critical at — 80 · 85 · 90 · 95 · 99 · 100% (default 95)
 
-두 임계는 서로를 모르므로 주의 임계를 위험 임계보다 높게 고를 수 있다 — 그러면 **위험 임계에 맞춰지고 amber 단계가 없어진다**(ok 에서 red 로 바로 뛴다).
+The two thresholds do not know about each other, so you can pick a warn threshold above the critical one. When you do, **it is pulled down to the critical value and the amber step disappears** (ok jumps straight to red).
 
-**전역** (두 프로바이더 공유):
+**Global** (shared by both providers):
 
-- 갱신 주기 — 1 · 3 · 5 · 10 · 30 · 60분 (기본 5분). 프로바이더 공유 자원이라 인스턴스별로 두면 요청률이 인스턴스 수만큼 곱해진다.
+- Refresh — 1 · 3 · 5 · 10 · 30 · 60 min (default 5 min). This is a shared per-provider resource; per-instance intervals would multiply the request rate by the number of instances.
 
-## 화면 읽기
+## Reading the screen
 
-좁은 캔버스(다이얼 200×100 / 키 144×144)에 같은 크기 숫자 둘을 넣으면 팔 길이에서 둘 다 안 읽히므로 **주역 1 + 조역 1** 위계로 그린다. 예외는 폭이 남는 **다이얼 도넛** 으로, 같은 크기 링 2개를 나란히 두고 위계를 색으로만 준다.
+Two equally sized numbers on a narrow canvas (dial 200×100, key 144×144) means neither is readable at arm's length, so the gauges are drawn as **one lead plus one supporting** value. The exception is the **dial donut**, which has width to spare: two rings of the same size sit side by side and the hierarchy is carried by color alone.
 
-- **배경을 칠하지 않는다** — 스트림덱 프로필 배경이 그대로 비친다. 대신 **어두운 배경을 전제**한다(아래 한계).
-- **색은 위험도**다. 주의 임계↑ amber, 위험 임계↑ red(기본 80%·95%, 액션마다 바꿀 수 있다). 남은양 기준에서는 임계가 뒤집힌다 — 사용 80% 와 남은 20% 는 같은 상황이므로 같은 색이다.
-- **남은 시간**을 창마다 쓴다 — 5H 는 `2h 14m`, 주간은 `3d 4h`.
-- **`—` 는 0% 가 아니라 "모름"** 이다. 값을 모르는 창은 트랙만 그린다.
-- **5H 를 모르고 주간만 알면 주간이 주역 자리로 올라간다.** Codex 는 2026-07-13 이후 주간 창만 반환하므로 **Codex 의 5H 공란은 정상**이고, 그 자리에 `주간만 제공` 이 남는다.
-- **실패하면 게이지를 아예 그리지 않는다.** "여유 있음"과 "플러그인 고장"이 닮으면 분간할 수 없으므로, 상태 제목과 다음 할 일 한 줄만 띄운다 — `로그인 필요` / `Claude Code 에서 로그인` 처럼 10종이 서로 다르다.
-- **429 · 네트워크 실패는 화면을 비우지 않는다.** 마지막 성공값을 나이(`23분 전`)와 함께 계속 보여준다 — 인증도 엔드포인트도 정상인 상태이기 때문이다.
+- **No canvas fill** — the Stream Deck profile background shows through. In exchange, a dark background is **assumed** (see limitations).
+- **Color means risk.** At or above the warn threshold amber, at or above the critical threshold red (80% and 95% by default, changeable per action). On the remaining basis the thresholds flip — 80% used and 20% left are the same situation, so they get the same color.
+- **Time until reset** is shown per window — `2h 14m` for 5H, `3d 4h` for weekly.
+- **`—` means "unknown", not 0%.** A window whose value is unknown gets only its track drawn.
+- **If 5H is unknown and only weekly is known, weekly is promoted to the lead position.** Codex has returned only the weekly window since 2026-07-13, so **an empty 5H slot on Codex is normal** and that slot reads `Weekly only`.
+- **On failure no gauge is drawn at all.** "Plenty left" and "the plugin is broken" must not look alike, so only a status title and a one-line next step appear — 10 distinct pairs such as `Sign-in needed` / `Log in: Claude Code`.
+- **429 and network failures do not blank the screen.** The last successful value stays up with its age (`23m ago`), because both the credentials and the endpoint are fine.
 
-## 네트워크 · 자격증명
+## Network and credentials
 
-읽는 곳:
+Read from:
 
-- macOS 키체인 `Claude Code-credentials` (`security find-generic-password`) 또는 `~/.claude/.credentials.json` — `CLAUDE_CONFIG_DIR` 을 따른다
+- The macOS keychain entry `Claude Code-credentials` (`security find-generic-password`) or `~/.claude/.credentials.json` — `CLAUDE_CONFIG_DIR` is honored
 - `~/.codex/auth.json`
 
-호출하는 곳:
+Called:
 
 - `https://api.anthropic.com/api/oauth/usage`
 - `https://chatgpt.com/backend-api/wham/usage`
 
-하지 않는 것:
+Never done:
 
-- **토큰 refresh 를 하지 않는다.** refresh token 이 1회용으로 회전하므로 플러그인이 갱신하면 Claude Code CLI 가 무효 토큰을 들고 남아 로그아웃된다. 만료되면 `재로그인 필요` 를 띄우고, CLI 가 다음 실행에서 갱신하면 다음 폴링에 자동 복구된다.
-- **토큰을 어느 설정에도 저장하지 않는다.** 액션 설정은 평문이고 Stream Deck 프로필 export 에 포함된다.
-- **응답 본문을 로그에 쓰지 않는다.** Codex 사용량 응답에는 `email` · `user_id` · `account_id` 가 평문으로 들어 있다.
-- **실패가 요청 빈도를 올리는 경로를 만들지 않는다.** 실패 시 대기는 항상 폴링 간격 이상이고 연속 4회부터 고정 쿨다운이다.
+- **No token refresh.** The refresh token rotates as a one-time value, so refreshing here would leave the Claude Code CLI holding an invalid token and log it out. On expiry the plugin shows `Token expired`, and once the CLI refreshes on its next run the plugin recovers on the following poll.
+- **No token in any settings store.** Action settings are plaintext and are included in Stream Deck profile exports.
+- **No response bodies in the log.** Codex usage responses carry `email`, `user_id` and `account_id` in the clear.
+- **No path where failure raises the request rate.** A failed poll always waits at least the poll interval, and from the fourth consecutive failure it moves to a fixed cooldown.
 
-### statusline 훅 (선택)
+### statusline hook (optional)
 
-Claude Code 가 이미 받아온 사용량을 캐시로 넘겨받아, **코딩 중에는 Claude 쪽 API 호출이 0** 이 된다. 설치하지 않아도 직접 폴링으로 동작한다.
+Hands over usage that Claude Code already fetched, as a cache — **zero Claude API calls while you are coding**. Without it the plugin simply polls directly.
 
 `~/.claude/settings.json`:
 
@@ -122,48 +126,50 @@ Claude Code 가 이미 받아온 사용량을 캐시로 넘겨받아, **코딩 �
 {
   "statusLine": {
     "type": "command",
-    "command": "node /절대경로/c_ai_usage/scripts/statusline-cache.mjs"
+    "command": "node /absolute/path/c_ai_usage/scripts/statusline-cache.mjs"
   }
 }
 ```
 
-## 개발
+## Development
 
-저장소 루트에서:
+From the repository root:
 
 ```bash
-npm test                      # 루트 vitest 하나가 전 워크스페이스를 돈다
+npm test                      # one root vitest run covers every workspace
 npm run lint
 npm run build -w c-ai-usage
-npm run watch -w c-ai-usage   # 변경 감지 빌드 + 저장 시 자동 streamdeck restart
+npm run watch -w c-ai-usage   # rebuild on change plus an automatic streamdeck restart on save
 ```
 
-이 디렉토리에서:
+From this directory:
 
 ```bash
 npx streamdeck validate com.sonky.c-ai-usage.sdPlugin
-node scripts/build-icons.mjs         # 아이콘 16장 재생성 (헤드리스 Chrome)
-node scripts/build-readme-shots.mjs  # 위 README 스크린샷 4장 재생성 (npm test 를 먼저 돌린다)
+node scripts/build-icons.mjs         # regenerate the 16 icons (needs headless Chrome)
+node scripts/build-readme-shots.mjs  # regenerate the 4 README screenshots (run npm test first)
 ```
 
-**렌더러를 고치면 README 스크린샷도 다시 굽는다** — `docs/*.png` 는 커밋된 생성물이고 낡아도 아무 신호가 없다. 입력은 `npm test` 가 만드는 `preview/*.svg` 라 순서가 있다.
+**When you change the renderer, rebake the README screenshots** — `docs/*.png` are committed build products and nothing signals when they go stale. Their input is the `preview/*.svg` that `npm test` writes, hence the order. The preview holds a `ko-` and an `en-` set; the screenshots use the `en-` one because this README is English.
 
-타입체크는 별도 스크립트 없이 `npm run build`(rollup 의 `@rollup/plugin-typescript`)가 겸한다.
+There is no separate typecheck script — `npm run build` covers it through rollup's `@rollup/plugin-typescript`.
 
-게이지는 in-plugin SVG 생성이고 순수 함수(`src/render/gauge.ts`)라 픽스처만으로 전 상태를 검증할 수 있다. `npm test` 가 `preview/index.html` 컨택트시트를 만든다 — 모든 조합을 캔버스 크기 그대로 타일링한 것이고 **레이아웃 판정용**이다. 기기에 올라가는 실제 크기(키는 SD+ HID 해상도 120×120 으로 축소된다)나 래스터라이저의 기능 지원 문제는 여기서 드러나지 않으므로, 그쪽은 `preview/` 의 SVG 를 헤드리스 Chrome 으로 실제 크기에 굽거나 실기기에서 본다.
+The gauge is SVG generated in-plugin by a pure function (`src/render/gauge.ts`), so fixtures alone cover every state. `npm test` also writes the `preview/index.html` contact sheet, which tiles every combination at canvas size and is **for judging layout**. It does not surface the real on-device size (keys scale down to the SD+ HID resolution of 120×120) or rasterizer feature gaps; for those, bake the SVGs from `preview/` at real size with headless Chrome, or look at the device.
 
-## 알려진 한계
+## Known limitations
 
-- **Windows 는 구현·미검증.** 네이티브 의존이 없어 위험은 자격증명 경로에 국한된다.
-- **밝은 프로필 배경에서는 읽을 수 없다.** 게이지가 배경을 칠하지 않으므로 판독 숫자(밝은 회색)·조역 링·구분선이 밝은 배경에 묻힌다. 임계 색(amber·red)만 살아남는다. 스트림덱 프로필 배경을 어둡게 두고 쓴다.
-- **남은 시간은 폴링 해상도까지만 맞다.** 다시 그리는 계기가 폴링뿐이라 카운트다운이 최대 폴링 간격(기본 5분)만큼 낡을 수 있다. 신경 쓰이면 갱신 주기를 줄인다.
-- **Codex 는 주간 창만 온다.** 벤더가 5시간 창을 다시 주면 코드 변경 없이 채워진다(창 길이 버킷으로 배정한다).
-- 키에서는 커스텀 타이틀을 쓸 수 없다(`UserTitleEnabled: false`) — 사용자 지정 타이틀이 플러그인 출력을 영구히 억제하는 함정을 없앴다.
+- **Windows is implemented but unverified.** With no native dependencies, the risk is limited to the credential paths.
+- **Unreadable on a light profile background.** Because the gauge does not paint a background, the readout numbers (light gray), the supporting ring and the rules are all lost on a light background; only the threshold colors (amber, red) survive. Keep the Stream Deck profile background dark.
+- **Time until reset is only as accurate as the poll interval.** Polling is the sole trigger for a redraw, so the countdown can be stale by up to one interval (5 min by default). Shorten the refresh interval if that bothers you.
+- **Codex returns only the weekly window.** If the vendor starts returning a 5-hour window again it fills in with no code change (windows are assigned by duration bucket).
+- Custom titles are unavailable on keys (`UserTitleEnabled: false`) — this removes the trap where a user-set title permanently suppresses the plugin's own output.
 
-## 문서
+## Documents
 
-|                              |                                 |
-| ---------------------------- | ------------------------------- |
-| [SPEC.md](SPEC.md)           | 계약·비즈니스 규칙 (SSOT)       |
-| [DECISIONS.md](DECISIONS.md) | 설계 결정과 이유, 검토한 대안   |
-| [../CLAUDE.md](../CLAUDE.md) | 손대기 전에 알아야 할 결합 관계 |
+Written in Korean.
+
+|                              |                                                       |
+| ---------------------------- | ----------------------------------------------------- |
+| [SPEC.md](SPEC.md)           | Contracts and business rules (SSOT)                   |
+| [DECISIONS.md](DECISIONS.md) | Design decisions, their reasons, alternatives weighed |
+| [../CLAUDE.md](../CLAUDE.md) | The couplings to know before touching code            |

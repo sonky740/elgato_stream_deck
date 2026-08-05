@@ -13,6 +13,6 @@ export function createMediaController(): MediaController {
     case 'win32':
       return new WindowsMediaController();
     default:
-      throw new Error(`지원하지 않는 플랫폼입니다: ${process.platform}`);
+      throw new Error(`Unsupported platform: ${process.platform}`);
   }
 }

@@ -214,7 +214,7 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
     } catch (err) {
       // 렌더 실패는 다음 값에서 다시 시도된다. 시그니처는 되돌려 재시도를 막지 않게 한다.
       this.#lastSent.delete(action.id);
-      streamDeck.logger.warn('게이지 렌더 실패', err);
+      streamDeck.logger.warn('gauge render failed', err);
     }
   }
 }
@@ -232,11 +232,11 @@ function startProbe(action: GaugeAction): () => void {
     if (stage === undefined) {
       return;
     }
-    streamDeck.logger.info(`[게이트1] ${i}/${stages.length} ${stage.name} — ${stage.describe}`);
+    streamDeck.logger.info(`[gate1] ${i}/${stages.length} ${stage.name} — ${stage.describe}`);
     const done = action.isDial()
       ? action.setFeedback({ [CANVAS_KEY]: stage.payload })
       : action.setImage(stage.payload);
-    done.catch((err: unknown) => streamDeck.logger.warn(`[게이트1] ${stage.name} 전송 실패`, err));
+    done.catch((err: unknown) => streamDeck.logger.warn(`[gate1] ${stage.name} send failed`, err));
   };
   send();
   const timer = setInterval(send, PROBE_INTERVAL_MS);

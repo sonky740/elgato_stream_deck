@@ -41,7 +41,7 @@ function testSvg(stageNo: number): string {
 
 export function probeStages(): ProbeStage[] {
   return [
-    { name: '1 raw-svg', describe: 'raw <svg> 문자열', payload: testSvg(1) },
+    { name: '1 raw-svg', describe: 'raw <svg> string', payload: testSvg(1) },
     {
       name: '2 base64',
       describe: 'data:image/svg+xml;base64',
@@ -49,7 +49,7 @@ export function probeStages(): ProbeStage[] {
     },
     {
       name: '3 charset-utf8',
-      describe: 'data:image/svg+xml;charset=utf8 (문서화 안 됨)',
+      describe: 'data:image/svg+xml;charset=utf8 (undocumented)',
       payload: `data:image/svg+xml;charset=utf8,${encodeURIComponent(testSvg(3))}`,
     },
   ];

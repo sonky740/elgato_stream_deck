@@ -31,14 +31,16 @@ const BG = '#16181c';
 const SCALE = 2;
 const FONT = "-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif";
 
-/** 자리표시 곡 정보. 실제 음원을 쓰지 않는다. */
-const SAMPLE = { title: '곡 제목', artist: '아티스트', album: '앨범' };
+/** 자리표시 곡 정보. 실제 음원을 쓰지 않는다. README 가 영문이라 문구도 영문이다. */
+const SAMPLE = { title: 'Song title', artist: 'Artist', album: 'Album' };
 
 const layout = JSON.parse(readFileSync(path.join(PLUGIN, 'layouts', 'now-playing.json'), 'utf8'));
 const item = (key) => {
   const found = layout.items.find((i) => i.key === key);
   if (found === undefined) {
-    throw new Error(`레이아웃에 '${key}' item 이 없다 — 렌더 호출부와 같이 바뀌었는지 확인한다.`);
+    throw new Error(
+      `layout has no '${key}' item — check whether the render call site changed with it.`,
+    );
   }
   return found;
 };
@@ -99,4 +101,4 @@ execFileSync(CHROME, [
   html,
 ]);
 rmSync(TMP, { recursive: true, force: true });
-console.log(`dial.png  ${200 * SCALE}×${100 * SCALE}  (레이아웃 정의 기반 재구성)`);
+console.log(`dial.png  ${200 * SCALE}×${100 * SCALE}  (rebuilt from the layout definition)`);

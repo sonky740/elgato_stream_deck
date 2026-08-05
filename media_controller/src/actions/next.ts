@@ -19,7 +19,7 @@ export class NextAction extends SingletonAction {
     try {
       await this.#media.next();
     } catch (err) {
-      streamDeck.logger.warn('next 실패', err);
+      streamDeck.logger.warn('next failed', err);
       await ev.action.showAlert();
     }
   }

@@ -79,7 +79,7 @@ export class DarwinMediaController implements MediaController {
   async getNowPlaying(): Promise<NowPlaying | null> {
     if (this.#bridgeFailed) {
       throw new Error(
-        'macOS 미디어 브리지를 시작할 수 없습니다 — vendor 경로 또는 프레임워크 서명을 확인하세요 (CLAUDE.md 참고).',
+        'Cannot start the macOS media bridge — check the vendor path and the framework signature (see CLAUDE.md).',
       );
     }
     this.#ensureStream();
@@ -126,7 +126,9 @@ export class DarwinMediaController implements MediaController {
       try {
         msg = JSON.parse(line) as typeof msg;
       } catch {
-        streamDeck.logger.trace(`[mediaremote-adapter] 비JSON 출력 무시: ${line.slice(0, 120)}`);
+        streamDeck.logger.trace(
+          `[mediaremote-adapter] ignoring non-JSON output: ${line.slice(0, 120)}`,
+        );
         return;
       }
       if (msg.type === 'data') {
@@ -150,7 +152,7 @@ export class DarwinMediaController implements MediaController {
         if (this.#fastFailures >= MAX_FAST_FAILURES) {
           this.#bridgeFailed = true;
           streamDeck.logger.error(
-            `[mediaremote-adapter] ${MAX_FAST_FAILURES}회 연속 즉시 종료 — 브리지를 비활성화합니다.`,
+            `[mediaremote-adapter] exited immediately ${MAX_FAST_FAILURES} times in a row — disabling the bridge.`,
           );
         }
       } else {
@@ -159,7 +161,7 @@ export class DarwinMediaController implements MediaController {
     };
     child.on('exit', onGone);
     child.on('error', (err) => {
-      streamDeck.logger.error(`[mediaremote-adapter] spawn 실패: ${err.message}`);
+      streamDeck.logger.error(`[mediaremote-adapter] spawn failed: ${err.message}`);
       onGone();
     });
   }

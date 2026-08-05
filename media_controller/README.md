@@ -1,142 +1,148 @@
 # Media Controller
 
-**OS 미디어 세션**으로 현재 재생 중인 곡을 Stream Deck + 에 표시하고 제어한다. 특정 앱에 묶이지 않으므로 YouTube Music(브라우저 PWA 포함)을 비롯한 모든 플레이어가 대상이다.
+Shows and controls the current track on a Stream Deck + through the **OS media session**. It is not tied to a particular app, so every player works — including YouTube Music, browser PWA and all.
 
-## 이렇게 보인다
+## What it looks like
 
-<img src="docs/dial.png" width="200" alt="터치스트립 — 앨범아트 + 곡 제목 · 아티스트 · 앨범 3단" />
+<img src="docs/dial.png" width="200" alt="touch strip — album art plus title, artist and album on three lines" />
 
-터치스트립(200×100)에 앨범아트 + 곡 제목 · 아티스트 · 앨범이 3단으로 들어간다. 키에서는 앨범아트가 키 이미지, 곡 제목이 타이틀이 된다. 어두운 배경은 스트림덱 프로필 배경이다 — 레이아웃에 배경 item 이 없다.
+The touch strip (200×100) holds the album art plus track title, artist and album on three lines. On a key the album art becomes the key image and the track title becomes the title. The dark background is the Stream Deck profile background — the layout has no background item.
 
-⚠ **이 그림은 실기기 캡처가 아니라 재구성이다.** 이 플러그인은 `setFeedback` 으로 값만 보내고 그리는 건 기기의 레이아웃 렌더러라 뽑아낼 렌더 산출물이 없다. [레이아웃 정의](com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 rect · 폰트 크기 · 굵기 · 색을 그대로 읽어 다시 그린 것이고, 기기의 폰트 패밀리와 안티에일리어싱은 재현되지 않는다. 곡 정보는 자리표시 문자열이다.
+⚠ **This image is a reconstruction, not a device capture.** The plugin only sends values through `setFeedback`; the device's layout renderer draws them, so there is no render output to capture. The image is redrawn straight from the rect, font size, weight and color in the [layout definition](com.sonky.media-controller.sdPlugin/layouts/now-playing.json); the device's font family and antialiasing are not reproduced. The track text is a placeholder.
 
-## 요구사항
+## Requirements
 
-|                |                                                         |
-| -------------- | ------------------------------------------------------- |
-| Stream Deck 앱 | **7.1+** (매니페스트 `SDKVersion: 3`)                   |
-| 하드웨어       | Stream Deck + (다이얼) 또는 키 있는 아무 모델           |
-| OS             | macOS 12+ (검증 완료) / Windows 10+ (⚠ **구현·미검증**) |
+|                 |                                                                       |
+| --------------- | --------------------------------------------------------------------- |
+| Stream Deck app | **7.1+** (manifest `SDKVersion: 3`)                                   |
+| Hardware        | Stream Deck + (dials) or any model with keys                          |
+| OS              | macOS 12+ (verified) / Windows 10+ (⚠ **implemented but unverified**) |
 
-Node 런타임은 Stream Deck 앱이 번들한다(로컬 Node 버전과 무관).
+The Stream Deck app bundles the Node runtime, so your local Node version does not matter.
 
-## 설치
+## Language
 
-Marketplace 에 올린 플러그인이 아니라 로컬 설치다.
+Korean and English, chosen from the Stream Deck app language: Korean when the app is set to Korean, English for every other language. It is not a plugin setting.
+
+## Install
+
+This is a local install, not a Marketplace plugin.
 
 ```bash
-npm install                                  # 저장소 루트에서 1회
+npm install                                  # once, from the repository root
 npm run build -w media-controller
 
 cd media_controller
-npx streamdeck dev                                         # 서명 안 된 로컬 플러그인 허용 — 최초 1회
-npx streamdeck link com.sonky.media-controller.sdPlugin    # Stream Deck 에 연결 — 최초 1회
+npx streamdeck dev                                         # allow unsigned local plugins — once
+npx streamdeck link com.sonky.media-controller.sdPlugin    # link it into Stream Deck — once
 ```
 
-Stream Deck 앱에 **Media Controller** 카테고리가 생기고 액션 3개를 올릴 수 있다.
+A **Media Controller** category appears in the Stream Deck app with three actions to place.
 
-macOS 는 vendored 브리지가 저장소에 함께 커밋되어 있어 추가 빌드가 필요 없다. **Windows 는 헬퍼 exe 를 직접 빌드해야 한다** — 아래 [미디어 백엔드](#미디어-백엔드) 참고.
+On macOS the vendored bridge is committed with the repository, so nothing else to build. **On Windows you have to build the helper exe yourself** — see [Media backends](#media-backends) below.
 
-배포용 패키지가 필요하면 `npx streamdeck pack com.sonky.media-controller.sdPlugin`.
+For a distributable package: `npx streamdeck pack com.sonky.media-controller.sdPlugin`.
 
-## 액션과 컨트롤
+## Actions and controls
 
-| 액션            | surface     | 조작                                              |
-| --------------- | ----------- | ------------------------------------------------- |
-| **Now Playing** | 다이얼 · 키 | 곡 정보 표시                                      |
-|                 | 다이얼      | 회전 → 다음/이전 곡, 누름·터치 탭 → 재생/일시정지 |
-|                 | 키          | 누름 → 재생/일시정지                              |
-| **Next Track**  | 키          | 누름 → 다음 곡                                    |
-| **Previous**    | 키          | 누름 → 이전 곡                                    |
+| Action          | Surface    | Input                                                         |
+| --------------- | ---------- | ------------------------------------------------------------- |
+| **Now Playing** | dial · key | Shows the track                                               |
+|                 | dial       | rotate → next/previous track, press or touch tap → play/pause |
+|                 | key        | press → play/pause                                            |
+| **Next Track**  | key        | press → next track                                            |
+| **Previous**    | key        | press → previous track                                        |
 
-키는 누름 1동작뿐이라 회전을 대체할 Next·Previous 를 별도 액션으로 분리했다. 다이얼 하나면 세 동작이 다 들어가고, 키 기기에서는 **Now Playing + Next + Previous 3개**로 같은 기능을 구성한다.
+A key has only one gesture, so Next and Previous are split out as their own actions to stand in for rotation. One dial covers all three inputs; on a key-only device the same feature set is **Now Playing + Next + Previous**.
 
-제어 명령은 OS 의 "현재 now-playing 세션"에 전달된다 — 특정 앱을 지정할 수는 없다.
+Control commands go to the OS's "current now-playing session" — there is no way to target a specific app.
 
-## 화면
+## Screen
 
-- **다이얼**: 터치스트립에 앨범아트 + 제목 + 가수 + 앨범
-- **키**: 앨범아트를 키 이미지로, 곡 제목을 타이틀로
+- **Dial**: album art plus title, artist and album on the touch strip
+- **Key**: album art as the key image, track title as the title
 
-1초마다 갱신하지만 이는 브리지가 캐시해 둔 값을 읽는 것이라 가볍다(곡 변경은 브리지가 push 한다). 직전과 같으면 렌더를 생략한다 — 앨범아트 base64 를 재전송하지 않기 위해서다.
+It refreshes every second, but that only reads a value the bridge has already cached, so it is cheap (track changes are pushed by the bridge). A render identical to the previous one is skipped, to avoid re-sending the album-art base64.
 
-**재생 정보가 없으면** `재생 없음`, **브리지가 영구 실패하면** `설정 필요` 를 표시한다. Next·Previous 키는 제어 실패 시 느낌표(`showAlert`)를 띄운다.
+**With nothing playing** it shows `Nothing playing`; **when the bridge fails permanently** it shows `Setup needed`. The Next and Previous keys flash an exclamation mark (`showAlert`) when a control command fails.
 
-Play/pause 상태 아이콘은 토글하지 않는다(단일 State) — 다이얼과 동일한 의도된 한계다.
+The play/pause state icon does not toggle (single State) — the same intentional limitation as on the dial.
 
-## 미디어 백엔드
+## Media backends
 
-**macOS 15.4+ 부터 앱 내부에서 `MRMediaRemoteGetNowPlayingInfo` 를 호출하면 nil 이 돌아온다** — 곡 정보 취득이 차단됐다(제어 명령은 여전히 동작한다). 그래서 곡 정보는 반드시 out-of-process 브리지로 얻어야 한다. Windows 도 같은 이유(번들 Node 24 + 취약한 네이티브 애드온)로 헬퍼 프로세스를 쓴다.
+**Since macOS 15.4, calling `MRMediaRemoteGetNowPlayingInfo` from inside an app returns nil** — track info is blocked (control commands still work). Track info therefore has to come from an out-of-process bridge. Windows uses a helper process for a related reason: the bundled Node 24 plus fragile native addons.
 
-두 플랫폼의 브리지가 **같은 구조**다: 영속 stream 프로세스가 줄단위 JSON 으로 상태를 흘리고 플러그인이 캐시하며, 제어는 단발 `send`. stream 이 죽으면 다음 폴링에 재기동하지만 즉시 종료가 연속 3회면 브리지를 영구 비활성화한다(초당 재기동 루프 차단).
+Both platform bridges have the **same shape**: a persistent stream process emits state as line-delimited JSON and the plugin caches it, while control is a one-shot `send`. If the stream dies it restarts on the next poll, but three consecutive immediate exits disable the bridge permanently (this blocks a restart-per-second loop).
 
-### macOS — vendored, 검증 완료
+### macOS — vendored, verified
 
-[`ungive/mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter) v0.7.6 을 vendor 한다. `/usr/bin/perl` 이 MediaRemote 사용 권한을 갖고 있고, perl 이 동적 로드하는 헬퍼 프레임워크가 곡 정보를 stdout 으로 낸다 — 15.4+ 제약을 우회하는 경로다.
+Vendors [`ungive/mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter) v0.7.6. `/usr/bin/perl` holds the entitlement to use MediaRemote, and the helper framework that perl loads dynamically writes track info to stdout — that is the path around the 15.4+ restriction.
 
-perl 스크립트와 `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)는 **gitignore 대상이 아니며 커밋된다**(self-contained 배포). 프레임워크를 다시 빌드하려면:
+The perl script and `MediaRemoteAdapter.framework` (universal, ad-hoc signed) are **not gitignored and are committed** (self-contained distribution). To rebuild the framework:
 
 ```bash
-./scripts/build-mediaremote-adapter.sh          # 기본 v0.7.6
-./scripts/build-mediaremote-adapter.sh v0.7.6   # 특정 태그
+./scripts/build-mediaremote-adapter.sh          # defaults to v0.7.6
+./scripts/build-mediaremote-adapter.sh v0.7.6   # a specific tag
 ```
 
-clang 으로 유니버설 컴파일 → ad-hoc 서명 → `vendor/` 배치 → `test` 로 검증한다(cmake 불필요). 프레임워크는 ad-hoc 서명이라 복사할 때 서명이 유지돼야 로드된다.
+It compiles a universal binary with clang, ad-hoc signs it, places it in `vendor/` and verifies it with `test` (no cmake needed). Because the signature is ad-hoc, it must survive the copy for the framework to load.
 
-### Windows — 구현 완료, 미검증
+### Windows — implemented, unverified
 
-vendored `smtc-helper`(.NET, `Windows.Media.Control`)에 shell out 해 SMTC 로 곡 정보와 제어를 얻는다. 소스는 [`smtc-helper/`](smtc-helper/) 에 있지만 **exe 는 커밋되어 있지 않다** — Windows + .NET 8 SDK 에서 직접 빌드해야 한다.
+Shells out to a vendored `smtc-helper` (.NET, `Windows.Media.Control`) to read track info and send control commands through SMTC. The source is in [`smtc-helper/`](smtc-helper/) but **the exe is not committed** — build it on Windows with the .NET 8 SDK.
 
 ```powershell
-pwsh scripts/build-smtc-helper.ps1                 # 프레임워크 의존 (작음, .NET 런타임 필요)
-pwsh scripts/build-smtc-helper.ps1 -SelfContained  # 자체 포함 (런타임 불필요, 큼)
+pwsh scripts/build-smtc-helper.ps1                 # framework-dependent (small, needs the .NET runtime)
+pwsh scripts/build-smtc-helper.ps1 -SelfContained  # self-contained (no runtime needed, large)
 ```
 
-이 저장소는 macOS 에서 작성됐다. 코드와 구조는 macOS 와 같은 패턴으로 완성됐지만 **실행 검증이 남아 있다.**
+This repository was written on macOS. The code and structure follow the same pattern as the macOS side, but **verifying it on a real machine is still outstanding.**
 
-## 개발
+## Development
 
-저장소 루트에서:
+From the repository root:
 
 ```bash
 npm run lint
 npm run build -w media-controller
-npm run watch -w media-controller   # 변경 감지 빌드 + 저장 시 자동 streamdeck restart
+npm run watch -w media-controller   # rebuild on change plus an automatic streamdeck restart on save
 ```
 
-이 디렉토리에서:
+From this directory:
 
 ```bash
 npx streamdeck validate com.sonky.media-controller.sdPlugin
 npx streamdeck restart com.sonky.media-controller
-node scripts/build-readme-shots.mjs   # 위 README 그림 재생성 (헤드리스 Chrome)
+node scripts/build-readme-shots.mjs   # regenerate the image above (needs headless Chrome)
 ```
 
-**레이아웃을 고치면 그림도 다시 굽는다** — `docs/dial.png` 는 커밋된 생성물이고 낡아도 아무 신호가 없다. 스크립트가 레이아웃 JSON 을 읽으므로 좌표를 따로 맞출 필요는 없다.
+**When you change the layout, rebake the image** — `docs/dial.png` is a committed build product and nothing signals when it goes stale. The script reads the layout JSON, so there are no coordinates to keep in sync by hand.
 
-타입체크는 별도 스크립트 없이 `npm run build`(rollup 의 `@rollup/plugin-typescript`)가 겸한다.
+There is no separate typecheck script — `npm run build` covers it through rollup's `@rollup/plugin-typescript`.
 
-**디버깅**: 매니페스트 `Nodejs` 에 `"Debug": "enabled"` 를 넣고(배포 대비 지금은 꺼져 있다) VS Code 의 [Attach to Plugin](.vscode/launch.json) 구성으로 attach 한다.
+**Debugging**: add `"Debug": "enabled"` under `Nodejs` in the manifest (it is off right now, for distribution) and attach with the VS Code [Attach to Plugin](.vscode/launch.json) configuration.
 
-이 워크스페이스에는 단위 테스트가 없다(`npm test` 는 루트에서 돌지만 여기서 집을 파일이 없다). 검증은 실기기 미디어 세션으로 했다. 브리지 JSON 파싱은 픽스처로 덮을 수 있는 지점이라 테스트를 넣을 여지가 남아 있다.
+This workspace has no unit tests (`npm test` runs from the root but finds nothing to pick up here). Verification was done against a real device media session. Parsing the bridge JSON is the point that fixtures could cover, so there is room to add tests.
 
-## 알려진 한계
+## Known limitations
 
-- **Windows 는 구현·미검증.** 검증되면 `smtc-helper.exe` 를 커밋하고 이 표기를 지운다.
-- **제어 대상 앱을 지정할 수 없다** — OS 의 현재 세션에 전달된다.
-- **play/pause 상태를 아이콘으로 토글하지 않는다**(단일 State, `setState` 미사용).
-- 배포 시 프레임워크 **공증(notarization)** 은 검토 대상이다. 현재는 ad-hoc 서명이라 본인 머신·개발용엔 충분하지만 광범위 배포에는 Gatekeeper 이슈가 있을 수 있다.
+- **Windows is implemented but unverified.** Once verified, `smtc-helper.exe` gets committed and this note goes away.
+- **You cannot choose which app to control** — commands go to the OS's current session.
+- **The play/pause state is not toggled as an icon** (single State, no `setState`).
+- Framework **notarization** is worth revisiting before wider distribution. Ad-hoc signing is enough for your own machine and for development, but Gatekeeper may object elsewhere.
 
-## 서드파티
+## Third party
 
-|                                                                                      |                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`ungive/mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter) v0.7.6 | BSD 3-Clause — © 2025 Jonas van den Berg and contributors. 라이선스 전문은 [vendor/mediaremote-adapter/LICENSE](com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/LICENSE) |
+|                                                                                      |                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`ungive/mediaremote-adapter`](https://github.com/ungive/mediaremote-adapter) v0.7.6 | BSD 3-Clause — © 2025 Jonas van den Berg and contributors. Full license text at [vendor/mediaremote-adapter/LICENSE](com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/LICENSE) |
 
-## 문서
+## Documents
 
-|                              |                                 |
-| ---------------------------- | ------------------------------- |
-| [SPEC.md](SPEC.md)           | 계약·비즈니스 규칙 (SSOT)       |
-| [DECISIONS.md](DECISIONS.md) | 설계 결정과 이유, 검토한 대안   |
-| [../CLAUDE.md](../CLAUDE.md) | 손대기 전에 알아야 할 결합 관계 |
+Written in Korean.
+
+|                              |                                                       |
+| ---------------------------- | ----------------------------------------------------- |
+| [SPEC.md](SPEC.md)           | Contracts and business rules (SSOT)                   |
+| [DECISIONS.md](DECISIONS.md) | Design decisions, their reasons, alternatives weighed |
+| [../CLAUDE.md](../CLAUDE.md) | The couplings to know before touching code            |

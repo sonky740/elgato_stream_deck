@@ -77,7 +77,7 @@ export class WindowsMediaController implements MediaController {
   async getNowPlaying(): Promise<NowPlaying | null> {
     if (this.#bridgeFailed) {
       throw new Error(
-        'Windows SMTC 헬퍼를 시작할 수 없습니다 — 헬퍼가 빌드되어 vendor/smtc-helper 에 있는지 확인하세요 (scripts/build-smtc-helper.ps1, CLAUDE.md 참고).',
+        'Cannot start the Windows SMTC helper — check that it is built and present in vendor/smtc-helper (scripts/build-smtc-helper.ps1, see CLAUDE.md).',
       );
     }
     this.#ensureStream();
@@ -123,7 +123,7 @@ export class WindowsMediaController implements MediaController {
       try {
         payload = JSON.parse(line) as HelperPayload | null;
       } catch {
-        streamDeck.logger.trace(`[smtc-helper] 비JSON 출력 무시: ${line.slice(0, 120)}`);
+        streamDeck.logger.trace(`[smtc-helper] ignoring non-JSON output: ${line.slice(0, 120)}`);
         return;
       }
       this.#current = toNowPlaying(payload);
@@ -145,7 +145,7 @@ export class WindowsMediaController implements MediaController {
         if (this.#fastFailures >= MAX_FAST_FAILURES) {
           this.#bridgeFailed = true;
           streamDeck.logger.error(
-            `[smtc-helper] ${MAX_FAST_FAILURES}회 연속 즉시 종료 — 브리지를 비활성화합니다.`,
+            `[smtc-helper] exited immediately ${MAX_FAST_FAILURES} times in a row — disabling the bridge.`,
           );
         }
       } else {
@@ -154,7 +154,7 @@ export class WindowsMediaController implements MediaController {
     };
     child.on('exit', onGone);
     child.on('error', (err) => {
-      streamDeck.logger.error(`[smtc-helper] spawn 실패: ${err.message}`);
+      streamDeck.logger.error(`[smtc-helper] spawn failed: ${err.message}`);
       onGone();
     });
   }

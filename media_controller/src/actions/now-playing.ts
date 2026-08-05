@@ -152,7 +152,7 @@ export class NowPlayingAction extends SingletonAction {
     }
     this.#lastSig.set(action.id, 'error');
     const onFail = (e: unknown): void => {
-      streamDeck.logger.warn('에러 상태 렌더 실패', e);
+      streamDeck.logger.warn('failed to render error state', e);
     };
     // 문구 키는 영문 원문이다 — `ko.json` 의 `Localization` 이 한국어로 덮고, 그 밖의 언어는
     // 파일이 없어 키가 그대로 나온다(= 읽히는 영어). 키에 점을 쓰면 dotted path 로 해석돼
