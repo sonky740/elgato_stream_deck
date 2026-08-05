@@ -12,11 +12,11 @@ The touch strip (200×100) holds the album art plus track title, artist and albu
 
 ## Requirements
 
-|                 |                                                                       |
-| --------------- | --------------------------------------------------------------------- |
-| Stream Deck app | **7.1+** (manifest `SDKVersion: 3`)                                   |
-| Hardware        | Stream Deck + (dials) or any model with keys                          |
-| OS              | macOS 12+ (verified) / Windows 10+ (⚠ **implemented but unverified**) |
+|                 |                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| Stream Deck app | **7.1+** (manifest `SDKVersion: 3`)                                                              |
+| Hardware        | Stream Deck + (dials) or any model with keys                                                     |
+| OS              | macOS 12+. The manifest declares macOS only — the Windows bridge is written but ⚠ **unverified** |
 
 The Stream Deck app bundles the Node runtime, so your local Node version does not matter.
 
@@ -39,7 +39,7 @@ npx streamdeck link com.sonky.media-controller.sdPlugin    # link it into Stream
 
 A **Media Controller** category appears in the Stream Deck app with three actions to place.
 
-On macOS the vendored bridge is committed with the repository, so nothing else to build. **On Windows you have to build the helper exe yourself** — see [Media backends](#media-backends) below.
+On macOS the vendored bridge is committed with the repository, so nothing else to build. **Windows is written but not declared in the manifest**, so the plugin does not install there — see [Media backends](#media-backends) below.
 
 For a distributable package: `npx streamdeck pack com.sonky.media-controller.sdPlugin`.
 
@@ -87,9 +87,9 @@ The perl script and `MediaRemoteAdapter.framework` (universal, ad-hoc signed) ar
 
 It compiles a universal binary with clang, ad-hoc signs it, places it in `vendor/` and verifies it with `test` (no cmake needed). Because the signature is ad-hoc, it must survive the copy for the framework to load.
 
-### Windows — implemented, unverified
+### Windows — implemented, unverified, not declared
 
-Shells out to a vendored `smtc-helper` (.NET, `Windows.Media.Control`) to read track info and send control commands through SMTC. The source is in [`smtc-helper/`](smtc-helper/) but **the exe is not committed** — build it on Windows with the .NET 8 SDK.
+Shells out to a vendored `smtc-helper` (.NET, `Windows.Media.Control`) to read track info and send control commands through SMTC. The source is in [`smtc-helper/`](smtc-helper/) but **the exe is not committed** — build it on Windows with the .NET 8 SDK. The manifest's `OS` list deliberately omits Windows so the plugin is not offered on a platform nobody has run it on.
 
 ```powershell
 pwsh scripts/build-smtc-helper.ps1                 # framework-dependent (small, needs the .NET runtime)
@@ -114,6 +114,7 @@ From this directory:
 npx streamdeck validate com.sonky.media-controller.sdPlugin
 npx streamdeck restart com.sonky.media-controller
 node scripts/build-readme-shots.mjs   # regenerate the image above (needs headless Chrome)
+node scripts/build-store-shots.mjs    # Marketplace assets → store/ (gallery 1920×960 plus a 288×288 app icon, gitignored)
 ```
 
 **When you change the layout, rebake the image** — `docs/dial.png` is a committed build product and nothing signals when it goes stale. The script reads the layout JSON, so there are no coordinates to keep in sync by hand.
@@ -126,7 +127,7 @@ This workspace has no unit tests (`npm test` runs from the root but finds nothin
 
 ## Known limitations
 
-- **Windows is implemented but unverified.** Once verified, `smtc-helper.exe` gets committed and this note goes away.
+- **Windows is implemented but unverified, so the manifest declares macOS only** — the plugin does not install on Windows. Once verified, `smtc-helper.exe` gets committed, the `windows` entry returns to the manifest and this note goes away.
 - **You cannot choose which app to control** — commands go to the OS's current session.
 - **The play/pause state is not toggled as an icon** (single State, no `setState`).
 - Framework **notarization** is worth revisiting before wider distribution. Ad-hoc signing is enough for your own machine and for development, but Gatekeeper may object elsewhere.

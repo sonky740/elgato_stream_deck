@@ -22,7 +22,7 @@ Stream Deck **+** 의 다이얼 또는 일반 키로 OS 미디어 세션을 표�
 - 다이얼 회전: `ticks > 0` → 다음, `ticks < 0` → 이전, `ticks === 0` → 무시.
 - 컨트롤러는 plugin.ts에서 1개만 생성해 세 액션(Now Playing/Next/Previous)에 주입한다 — 하나의 OS 미디어 세션 = 하나의 브리지(중복 stream 프로세스 방지). Next/Previous는 단발 `send`만 하므로 stream 프로세스를 띄우지 않는다(darwin.ts `#ensureStream`는 lazy).
 - **macOS**: 인-프로세스 MediaRemote 직접 호출 금지(15.4+ nil). 곡 정보·제어 모두 vendored 어댑터를 `/usr/bin/perl`로 out-of-process 실행해 얻는다. 제어는 `MRACommand` ID(`2`=TogglePlayPause, `4`=NextTrack, `5`=PreviousTrack).
-- **Windows**: vendored `smtc-helper`(.NET) exe 에 shell out 해 SMTC(`GlobalSystemMediaTransportControlsSessionManager`)로 곡 정보·제어를 얻는다. 제어는 `playpause`/`next`/`previous` 문자열. (코드 구현 완료, **Windows 미검증** — 검증은 Windows 머신에서.)
+- **Windows**: vendored `smtc-helper`(.NET) exe 에 shell out 해 SMTC(`GlobalSystemMediaTransportControlsSessionManager`)로 곡 정보·제어를 얻는다. 제어는 `playpause`/`next`/`previous` 문자열. (코드 구현 완료, **Windows 미검증** — 검증은 Windows 머신에서.) 미검증인 동안 **매니페스트 `OS` 는 windows 를 선언하지 않는다** — 심사·설치가 선언된 플랫폼을 기준으로 하므로 실행되지 않는 플랫폼을 제공하지 않는다. 검증되면 항목을 되살린다.
 - 제어 명령은 OS의 "현재 now-playing 세션"에 전달된다(특정 앱 지정 불가).
 - 브리지 stream 프로세스가 정상 가동(≥3s) 후 죽으면 다음 폴링에 재기동(self-heal). 단, 즉시 종료가 연속 3회면 브리지를 영구 비활성화하고 이후 `getNowPlaying`은 에러를 던진다(초당 재기동 루프 차단 + "설정 필요" 표면화). macOS·Windows 동일.
 - 레이아웃 item `key` 와 `setFeedback` 키는 정확히 일치해야 렌더된다(`albumArt`·`title`·`artist`·`album`).

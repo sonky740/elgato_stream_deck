@@ -8,5 +8,8 @@ node_modules/
 # 렌더 프리뷰(생성물)
 preview/
 
+# 마켓플레이스 제출 자산(생성물 — Maker Console 에 직접 업로드한다)
+store/
+
 # 게이트 1 프로브 토글(로컬 전용)
 *.sdPlugin/.svg-probe

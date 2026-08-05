@@ -12,7 +12,7 @@ Both images show the **touch strip (200×100)**. The dark background is the Stre
     <td>
       <b><a href="media_controller/">media_controller</a></b><br />
       Show and control the current track through the OS media session (any player)<br />
-      <sub>verified on macOS / unverified on Windows</sub>
+      <sub>macOS only — the Windows bridge is written but unverified, so the manifest omits it</sub>
     </td>
   </tr>
   <tr>
@@ -35,7 +35,7 @@ Both plugins ship Korean and English. The language is not a setting: if the Stre
 
 ## Target environment
 
-macOS 12+ / Windows 10+ with the **Stream Deck app 7.1+** (manifest `SDKVersion: 3`, `Nodejs.Version: 24`). The Stream Deck app bundles the Node runtime, so your local Node version does not matter.
+**Stream Deck app 7.1+** (manifest `SDKVersion: 3`, `Nodejs.Version: 24`). The Stream Deck app bundles the Node runtime, so your local Node version does not matter. The declared platforms differ per plugin: c_ai_usage declares macOS 12+ and Windows 10+, media_controller declares macOS 12+ only because its Windows bridge has never been run.
 
 ## Shared commands (from the root)
 

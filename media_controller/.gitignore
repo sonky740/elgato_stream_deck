@@ -5,6 +5,9 @@ node_modules/
 *.sdPlugin/bin
 *.sdPlugin/logs
 
+# 마켓플레이스 제출 자산(생성물 — Maker Console 에 직접 업로드한다)
+store/
+
 # .NET (smtc-helper 빌드 산출물 — vendor 결과만 커밋)
 smtc-helper/bin/
 smtc-helper/obj/

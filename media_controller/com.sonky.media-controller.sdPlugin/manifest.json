@@ -1,7 +1,7 @@
 {
   "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
   "Name": "Media Controller",
-  "Version": "0.1.0.0",
+  "Version": "1.0.0.0",
   "Author": "sonky",
   "Actions": [
     {
@@ -63,10 +63,6 @@
     {
       "Platform": "mac",
       "MinimumVersion": "12"
-    },
-    {
-      "Platform": "windows",
-      "MinimumVersion": "10"
     }
   ],
   "Nodejs": {

@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 플러그인은 루트 하위 디렉토리에 자기완결적으로 들어가고(독립 빌드), **의존성 선언은 전부 루트 [package.json](package.json)에 모여 있다** — 툴체인은 devDependencies(rollup + 플러그인 4종, typescript·tslib, `@types/node`, `@elgato/cli`, ESLint·Prettier·vitest), 런타임 SDK `@elgato/streamdeck`은 dependencies. 워크스페이스 `package.json`은 `name`·`type: module`·자기 `build`/`watch` 스크립트만 갖는 **스크립트 홀더**이고 의존성 필드가 없다(전 플러그인이 같은 SDK·툴체인 버전을 쓴다). 새 플러그인은 루트에 디렉토리를 만들고 루트 `workspaces`에 추가한다 — SDK 버전을 플러그인별로 갈라야 하는 날이 오면 그 워크스페이스에만 `dependencies`를 되살린다(로컬 선언이 루트를 이긴다).
 
-| 워크스페이스                           | 플러그인                                                  | 상태                             |
-| -------------------------------------- | --------------------------------------------------------- | -------------------------------- |
-| [media_controller/](media_controller/) | OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어) | macOS 검증 완료 / Windows 미검증 |
-| [c_ai_usage/](c_ai_usage/)             | Claude·Codex 구독 사용량 한도를 5시간·주간 게이지로 표시  | macOS 검증 완료 / Windows 미검증 |
+| 워크스페이스                           | 플러그인                                                  | 상태                                                   |
+| -------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------ |
+| [media_controller/](media_controller/) | OS 미디어 세션으로 현재 재생 곡 표시·제어 (모든 플레이어) | macOS 검증 완료 / Windows 미검증·**매니페스트 미선언** |
+| [c_ai_usage/](c_ai_usage/)             | Claude·Codex 구독 사용량 한도를 5시간·주간 게이지로 표시  | macOS 검증 완료 / Windows 미검증                       |
 
-대상: macOS 12+ / Windows 10+. Stream Deck 앱 **7.1+** 필요(매니페스트 `SDKVersion: 3`, `Nodejs.Version: 24`).
+Stream Deck 앱 **7.1+** 필요(매니페스트 `SDKVersion: 3`, `Nodejs.Version: 24`). **선언 플랫폼이 플러그인마다 다르다** — c_ai_usage 는 macOS 12+ / Windows 10+, media_controller 는 macOS 12+ 만이다(네이티브 브리지를 Windows 에서 한 번도 돌려보지 않았고, 리뷰어는 선언된 플랫폼을 테스트한다). media_controller 의 Windows 코드는 그대로 남아 있으므로 검증되면 `OS` 항목만 되살린다.
 
 사람이 읽는 입구는 [README.md](README.md)(모노레포)와 각 플러그인의 `README.md`(설치·사용·플랫폼별 준비물)다. **설치 절차·컨트롤 매핑·요구사항·알려진 한계를 바꾸면 해당 README 도 같이 고친다** — 이 파일과 SPEC 은 그 사실을 중복해서 갖지 않으므로 README 가 유일한 사용자용 기술이다.
 
@@ -98,7 +98,7 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 - **다이얼 vs 키 surface 분기**: `onWillAppear`의 `ev.action`은 `DialAction | KeyAction` 유니온이다. `isDial()`/`isKey()` 타입가드로 좁힌 뒤 surface 별 렌더 API(`setFeedback` vs `setImage/setTitle`)를 호출한다. Now Playing 액션은 둘 다(`Controllers: ["Encoder","Keypad"]`), Next/Previous는 키 전용(`["Keypad"]`).
 - **액션 UUID ↔ 매니페스트 UUID**: `@action({ UUID })`와 [manifest.json](media_controller/com.sonky.media-controller.sdPlugin/manifest.json) Actions[].UUID가 완전히 같아야 이벤트 라우팅이 된다. 액션 3개(`now-playing`/`next`/`previous`) 모두.
 - **키 아이콘 = 정적 매니페스트 이미지**: Next/Previous 키는 동적 표시가 없어 manifest `Icon`(20/40px)·`States[].Image`(72/144px) 정적 PNG만 쓴다([imgs/actions/next/](media_controller/com.sonky.media-controller.sdPlugin/imgs/actions/next/)·[previous/](media_controller/com.sonky.media-controller.sdPlugin/imgs/actions/previous/), now-playing 디자인 계열로 생성). Now Playing 키의 기본 이미지는 `States[0].Image`(`now-playing/key`)이고, 재생 중이면 `setImage`로 앨범아트가 이를 덮는다. **Now Playing/Next 키는 play/pause 상태 아이콘을 토글하지 않는다**(단일 State, `setState` 미사용) — 다이얼과 동일한 의도된 한계.
-- **README 그림은 레이아웃 JSON 에서 재구성한 것**이다([scripts/build-readme-shots.mjs](media_controller/scripts/build-readme-shots.mjs) → `media_controller/docs/dial.png`, 커밋됨). 이 플러그인은 `setFeedback`으로 값만 보내고 그리는 건 기기의 레이아웃 렌더러라 **실기기 캡처 외에는 진짜 렌더가 없다** — 그래서 스크립트가 [now-playing.json](media_controller/com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 rect·폰트·색을 읽어 같은 그림을 만든다(좌표를 스크립트에 베끼면 레이아웃을 고칠 때 그림만 옛것으로 남는다 — item 이 없으면 throw 한다). 재구성이라는 사실은 루트·플러그인 README 양쪽에 적혀 있으니 **캡처라고 바꿔 쓰지 않는다.** 배경을 굽는 이유는 c_ai_usage 스크린샷과 같다(투명 PNG 는 GitHub 라이트 모드에서 흰 글자가 사라진다).
+- **README 그림은 레이아웃 JSON 에서 재구성한 것**이다([scripts/build-readme-shots.mjs](media_controller/scripts/build-readme-shots.mjs) → `media_controller/docs/dial.png`, 커밋됨). 이 플러그인은 `setFeedback`으로 값만 보내고 그리는 건 기기의 레이아웃 렌더러라 **실기기 캡처 외에는 진짜 렌더가 없다** — 그래서 [scripts/lib/dial-svg.mjs](media_controller/scripts/lib/dial-svg.mjs)가 [now-playing.json](media_controller/com.sonky.media-controller.sdPlugin/layouts/now-playing.json)의 rect·폰트·색을 읽어 같은 그림을 만든다(좌표를 스크립트에 베끼면 레이아웃을 고칠 때 그림만 옛것으로 남는다 — item 이 없으면 throw 한다). README·스토어 두 스크립트가 이 모듈을 공유한다 — 재구성을 파일마다 복사하면 같은 사고가 파일 단위로 생긴다. 재구성이라는 사실은 루트·플러그인 README 양쪽에 적혀 있으니 **캡처라고 바꿔 쓰지 않는다.** 배경을 굽는 이유는 c_ai_usage 스크린샷과 같다(투명 PNG 는 GitHub 라이트 모드에서 흰 글자가 사라진다).
 - **빌드 산출물**: `*.sdPlugin/bin/`은 rollup 출력이며 gitignore 대상. 소스는 `src/`만. 매니페스트 `CodePath`는 `bin/plugin.js`를 가리킨다.
 - **Node 런타임**은 Stream Deck 앱이 번들(매니페스트 `Nodejs.Version`)한다. 로컬 Node 버전과 무관하며, 앱이 7.1 미만이면 플러그인이 로드되지 않는다.
 - **vendored 네이티브 의존**: [vendor/mediaremote-adapter/](media_controller/com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/)의 perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)는 **gitignore 대상이 아니며 커밋된다**(self-contained 배포). `darwin.ts`는 `import.meta.url` 기준 `../vendor/...`로 경로를 해석한다 — 번들 레이아웃을 바꾸면 이 경로도 같이 바꿔야 한다. 프레임워크는 ad-hoc 서명이라 복사 시 서명이 유지돼야 로드된다(`codesign --verify`로 확인).
@@ -152,7 +152,7 @@ pwsh scripts/build-smtc-helper.ps1                # 프레임워크 의존(작�
 pwsh scripts/build-smtc-helper.ps1 -SelfContained # 자체 포함(런타임 불필요, 큼)
 ```
 
-검증되면 SPEC/이 문서의 "미검증" 표기를 제거하고, vendored `smtc-helper.exe`를 커밋한다(`*.sdPlugin/vendor/`는 gitignore 대상 아님).
+검증되면 SPEC/이 문서의 "미검증" 표기를 제거하고, vendored `smtc-helper.exe`를 커밋하고(`*.sdPlugin/vendor/`는 gitignore 대상 아님), 매니페스트 `OS` 에 `windows` 항목을 되살린다.
 
 ### 현재 wired vs Roadmap
 
@@ -190,6 +190,7 @@ media_controller와 **폴링 구조가 정반대**다. 거기서는 인스턴스
 - **⚠ SVG 색은 6자리 `#RRGGBB`만 쓴다.** 8자리 hex(`#RRGGBBAA`)는 색으로 받아들여지지 않아 **조용히 어긋난다** — `stroke`는 채움이 사라지고 `fill`은 검정이 되어 어두운 배경에 묻힌다(실기기 2026-08-04, 키 도넛의 WK 링이 이렇게 안 채워졌다). 반투명이 필요하면 배경 위에 미리 섞어 6자리로 굳힌다([render/gauge.ts](c_ai_usage/src/render/gauge.ts)의 `ACCENT_DIM`). `preview/` 컨택트시트는 브라우저가 그려서 이 부류를 못 잡는다 — `gauge.test.ts`의 "모든 fill·stroke 가 `#RRGGBB` 아니면 `none`" 불변식이 가드다.
 - **응답 본문을 로그에 쓰지 않는다.** Codex 사용량 응답에 `email`·`user_id`·`account_id`가 평문으로 온다. 그래서 이 워크스페이스는 `logger.setLevel('info')`다(media_controller의 `'trace'`를 복사하면 안 된다). Claude 키체인 blob에는 MCP 서버별 clientSecret이 동거하므로 `claudeAiOauth` 한 필드만 읽는다.
 - **`preview/`는 생성물**(gitignore). `npm test`가 매번 디렉토리를 비우고 SVG + `index.html` 컨택트시트를 다시 만든다(픽스처 이름을 바꿨을 때 옛 SVG가 섞이는 것을 막는다). **`ko-`/`en-` 두 세트**다 — 영문은 문구 폭이 달라 같은 조합에서도 레이아웃 판정이 따로 필요하다. 읽히는지는 눈으로만 확인되므로 헤드리스 Chrome으로 **실제 기기 픽셀 크기**에 래스터라이즈해서 본다 — 키는 SD+ HID 해상도인 **120×120**(144 SVG가 축소돼 올라간다), 다이얼은 200×100 그대로다.
-- **아이콘 16장은 스크립트 생성물이지만 커밋된다**([scripts/build-icons.mjs](c_ai_usage/scripts/build-icons.mjs), 헤드리스 Chrome). 마크는 270° 트윈 아크 — 두 겹이 두 창, 두 색이 두 프로바이더다. 크기 분기는 **논리 크기**로 판정한다(1x/2x 는 같은 논리 크기의 다른 해상도이므로 같은 분기를 타야 한다 — 40px 자산에 40px 분기를 쓰면 `icon@2x` 가 `icon` 과 다른 그림이 된다). 이 스크립트의 SVG 는 **8자리 hex 를 써도 된다** — 오프라인에서 PNG 로 굽고 기기에는 PNG 가 올라가므로 위의 6자리 제약은 런타임 SVG(`render/gauge.ts`)에만 적용된다.
+- **아이콘 16장은 스크립트 생성물이지만 커밋된다**([scripts/build-icons.mjs](c_ai_usage/scripts/build-icons.mjs), 헤드리스 Chrome). 마크는 270° 트윈 아크 — 두 겹이 두 창이다. ⚠ **색은 자리마다 규칙이 다르다**: Marketplace 가이드라인이 **액션 목록 아이콘(20/40)·카테고리 아이콘에 `#FFFFFF` 단색 + 투명 배경**을 요구하므로(색이 있으면 심사에서 반려된다) 그 세 자리는 프로바이더색을 포기했고 — 그래서 **claude·codex 액션 아이콘이 같은 그림이다**(구분은 액션 이름이 한다) — 브랜드색은 마켓플레이스 아이콘(256/512)·encoder 아이콘·키 이미지에만 남는다(액션 목록이 아니라 환경설정·다이얼 캔버스·키에 서는 자리다). 크기 분기는 **논리 크기**로 판정한다(1x/2x 는 같은 논리 크기의 다른 해상도이므로 같은 분기를 타야 한다 — 40px 자산에 40px 분기를 쓰면 `icon@2x` 가 `icon` 과 다른 그림이 된다). 이 스크립트의 SVG 는 **8자리 hex 를 써도 된다** — 오프라인에서 PNG 로 굽고 기기에는 PNG 가 올라가므로 위의 6자리 제약은 런타임 SVG(`render/gauge.ts`)에만 적용된다.
 - **README 스크린샷 4장도 커밋된 생성물**이다([scripts/build-readme-shots.mjs](c_ai_usage/scripts/build-readme-shots.mjs) → `c_ai_usage/docs/*.png`). 입력이 `npm test` 산출물인 `preview/*.svg` 라 **`npm test` → 스크립트** 순서다(스크립트는 SVG 가 없으면 실패한다 — 옛 preview 를 조용히 굽지 않는다). README 가 영문이라 입력은 **`en-` 세트**다. **렌더러를 고치면 같이 다시 굽는다** — 낡아도 아무 신호가 없다. ⚠ 이 PNG 는 **배경을 굽는다**: 런타임 SVG 는 캔버스를 안 칠하므로 그대로 내보내면 투명 PNG 가 되고 GitHub 라이트 모드에서 판독 숫자가 사라진다. `build-icons.mjs` 의 `--default-background-color=00000000` 을 복사하면 정확히 그 실패가 된다.
+- **스토어 자산은 커밋하지 않는다**([scripts/build-store-shots.mjs](c_ai_usage/scripts/build-store-shots.mjs) → `store/`, gitignore). Maker Console 에 직접 업로드하는 자산이라 저장소에 둘 이유가 없고, 규격은 가이드라인이 정한다 — 갤러리 **1920×960 PNG 3~10장**, 앱 아이콘 **288×288**(플러그인 내부 256/512 와 별개), 문구는 영문. 갤러리 입력은 `preview/*.svg`(`en-` 세트)뿐이고 앱 아이콘의 마크는 [scripts/lib/mark-svg.mjs](c_ai_usage/scripts/lib/mark-svg.mjs) 가 `build-icons.mjs` 와 공유한다 — 기하를 스크립트에 베끼지 않는다(README 스크린샷과 같은 이유). media_controller 쪽도 같은 이름의 스크립트를 갖는데 **앱 아이콘에 워드마크가 없다**: 그 마크는 벡터 소스가 없는 디자인 PNG 이고 캔버스를 꽉 채워, 이름 띠를 넣으려면 마크를 다시 그려야 한다(재생 글리프는 이름 없이도 읽힌다).
 - **statusline 훅은 선택 설치**다([scripts/statusline-cache.mjs](c_ai_usage/scripts/statusline-cache.mjs)). 설치하면 코딩 중 API 호출이 0이 된다(tier 1). 설치 안 해도 직접 폴링(tier 2)으로 동작한다.

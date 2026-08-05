@@ -148,6 +148,7 @@ From this directory:
 npx streamdeck validate com.sonky.c-ai-usage.sdPlugin
 node scripts/build-icons.mjs         # regenerate the 16 icons (needs headless Chrome)
 node scripts/build-readme-shots.mjs  # regenerate the 4 README screenshots (run npm test first)
+node scripts/build-store-shots.mjs   # Marketplace assets → store/ (gallery 1920×960 plus a 288×288 app icon, gitignored; run npm test first)
 ```
 
 **When you change the renderer, rebake the README screenshots** — `docs/*.png` are committed build products and nothing signals when they go stale. Their input is the `preview/*.svg` that `npm test` writes, hence the order. The preview holds a `ko-` and an `en-` set; the screenshots use the `en-` one because this README is English.
