@@ -15,6 +15,27 @@ Elgato **Stream Deck +** 용 플러그인 **npm workspaces 모노레포**. 각 �
 
 사람이 읽는 입구는 [README.md](README.md)(모노레포)와 각 플러그인의 `README.md`(설치·사용·플랫폼별 준비물)다. **설치 절차·컨트롤 매핑·요구사항·알려진 한계를 바꾸면 해당 README 도 같이 고친다** — 이 파일과 SPEC 은 그 사실을 중복해서 갖지 않으므로 README 가 유일한 사용자용 기술이다.
 
+## 언어 (두 플러그인 공통)
+
+**화면에 나가는 문구는 한국어/영어 이중, 화면 밖 텍스트는 영문 단일**이다. 이 경계가 이 저장소의 언어 규약이고, 어느 쪽인지로 손대는 방식이 갈린다.
+
+- **이중(한/영)**: 매니페스트 문구(Tooltip·TriggerDescription·Description), 기기 화면 문구, PI 라벨·옵션·도움말. 언어는 설정이 아니라 **Stream Deck 앱 언어**에서 파생한다 — `ko` → 한국어, 나머지 7개 언어는 전부 영어(영어가 폴백).
+- **영문 단일**: README 3개, `logger.*`·`Error()` 문구, 빌드 스크립트 콘솔 출력, `docs/*.png` 스크린샷. GitHub 은 로케일별 README 분기 수단이 없고(디렉토리당 `README.md` 하나) 로그를 읽는 쪽은 개발자다.
+- **한국어 유지**: 소스 주석, 이 파일, `SPEC.md`·`DECISIONS.md`, 테스트 이름.
+
+메커니즘은 **플러그인마다 다르고 그게 의도다**:
+
+- **매니페스트**(양쪽) — 값을 영어로 두고 `*.sdPlugin/ko.json` 최상위가 한국어로 덮는다. 액션별 문구는 **액션 UUID 를 키로** 중첩한다(`Encoder.TriggerDescription` 까지). 이 파일은 Stream Deck 앱이 직접 읽는다.
+- **런타임 문구 — media_controller**: `streamDeck.i18n.t('<영문 원문>')` + `ko.json` 의 `Localization` 블록. 문구 3개뿐이고 액션 테스트가 없어 배관이 0줄이다.
+- **런타임 문구 — c_ai_usage**: `render/gauge.ts` 의 `Record<Lang, …>` 테이블 + `RenderOptions.lang`(필수). 렌더러가 순수 함수이고 `streamDeck.info` 는 **connect 전 접근 시 throw** 하므로 SDK i18n 을 읽으면 테스트·preview 생성이 깨진다. 언어는 [src/i18n.ts](c_ai_usage/src/i18n.ts) 모듈 상태가 갖고 `plugin.ts` 가 connect 직후 심는다. **통일하려고 한쪽으로 합치면 그 제약을 배반한다.**
+- **PI**: `__MSG_<key>__` + [ui/i18n.js](c_ai_usage/com.sonky.c-ai-usage.sdPlugin/ui/i18n.js) 의 `SDPIComponents.i18n.locales`. 그 파일을 `sdpi-components.js` **뒤·`<body>` 앞**에서 동기 로드해야 한다(엘리먼트 업그레이드 시점에 locales 가 있어야 치환된다). 도움말 `<details>` 는 sdpi 컴포넌트가 아니라 `__MSG_` 가 닿지 않아 같은 파일의 `data-i18n` 워커가 채운다.
+
+⚠ **i18n 키에 점(`.`)을 쓰면 안 된다.** SDK(`get()`)와 sdpi(`vt()`) 둘 다 키를 **dotted path** 로 훑어 `ko.CLAUDE['md 참고']` 를 찾고 실패하면 키를 그대로 표시한다 — 번역이 조용히 안 된다. 그래서 `CLAUDE.md 참고` 는 키가 아니라 **한국어 값 쪽에만** 있다(키는 `See setup guide`).
+
+⚠ **`ko.json` 에 `Localization` 이 없으면 `i18n.t()` 가 조용히 키를 반환한다.** SDK 의 파서가 그 키를 요구하고 없으면 `TypeError` 를 던지는데 로더가 삼켜 로그만 남는다. c_ai_usage 의 `ko.json` 에는 그 블록이 없다 — 그 워크스페이스가 `t()` 를 쓰지 않기 때문이며, 쓰기 시작하면 블록을 먼저 만든다.
+
+⚠ **PI 의 언어 신호만 다르다** — 웹뷰의 `navigator.language`(sdpi 소유)이고 게이지·매니페스트는 앱 언어다. OS 와 앱 언어를 다르게 쓰면 PI 만 다른 언어가 될 수 있다(v1 수용).
+
 ## 명령어
 
 **의존성 설치·lint·format은 루트에서** (npm workspaces — 한 번 설치하면 전 플러그인이 공용 도구를 공유):
@@ -168,7 +189,7 @@ media_controller와 **폴링 구조가 정반대**다. 거기서는 인스턴스
 - **⚠ raw SVG 문자열은 pixmap에서 안 그려진다.** Elgato `layout.json`은 pixmap `value`가 "or an SVG `string`"을 받는다고 적었지만 실제로는 빈 화면이 되고 **전송 오류도 나지 않아 조용히 빈다**(값이 경로로 먼저 해석되는 것으로 보인다 — 스키마 설명의 첫 항목이 경로다). **data URI로 보내야 한다.** `actions/gauge-action.ts`의 `encodeSvg()`가 그 유일한 지점이고, 문서화된 base64 형식을 쓴다(`charset=utf8`도 이 기기에서 동작하지만 어디에도 문서화돼 있지 않다). 키의 `setImage`도 같은 base64 경로를 쓴다(실기기 확인).
 - **⚠ SVG 색은 6자리 `#RRGGBB`만 쓴다.** 8자리 hex(`#RRGGBBAA`)는 색으로 받아들여지지 않아 **조용히 어긋난다** — `stroke`는 채움이 사라지고 `fill`은 검정이 되어 어두운 배경에 묻힌다(실기기 2026-08-04, 키 도넛의 WK 링이 이렇게 안 채워졌다). 반투명이 필요하면 배경 위에 미리 섞어 6자리로 굳힌다([render/gauge.ts](c_ai_usage/src/render/gauge.ts)의 `ACCENT_DIM`). `preview/` 컨택트시트는 브라우저가 그려서 이 부류를 못 잡는다 — `gauge.test.ts`의 "모든 fill·stroke 가 `#RRGGBB` 아니면 `none`" 불변식이 가드다.
 - **응답 본문을 로그에 쓰지 않는다.** Codex 사용량 응답에 `email`·`user_id`·`account_id`가 평문으로 온다. 그래서 이 워크스페이스는 `logger.setLevel('info')`다(media_controller의 `'trace'`를 복사하면 안 된다). Claude 키체인 blob에는 MCP 서버별 clientSecret이 동거하므로 `claudeAiOauth` 한 필드만 읽는다.
-- **`preview/`는 생성물**(gitignore). `npm test`가 매번 디렉토리를 비우고 SVG + `index.html` 컨택트시트를 다시 만든다(픽스처 이름을 바꿨을 때 옛 SVG가 섞이는 것을 막는다). 읽히는지는 눈으로만 확인되므로 헤드리스 Chrome으로 **실제 기기 픽셀 크기**에 래스터라이즈해서 본다 — 키는 SD+ HID 해상도인 **120×120**(144 SVG가 축소돼 올라간다), 다이얼은 200×100 그대로다.
+- **`preview/`는 생성물**(gitignore). `npm test`가 매번 디렉토리를 비우고 SVG + `index.html` 컨택트시트를 다시 만든다(픽스처 이름을 바꿨을 때 옛 SVG가 섞이는 것을 막는다). **`ko-`/`en-` 두 세트**다 — 영문은 문구 폭이 달라 같은 조합에서도 레이아웃 판정이 따로 필요하다. 읽히는지는 눈으로만 확인되므로 헤드리스 Chrome으로 **실제 기기 픽셀 크기**에 래스터라이즈해서 본다 — 키는 SD+ HID 해상도인 **120×120**(144 SVG가 축소돼 올라간다), 다이얼은 200×100 그대로다.
 - **아이콘 16장은 스크립트 생성물이지만 커밋된다**([scripts/build-icons.mjs](c_ai_usage/scripts/build-icons.mjs), 헤드리스 Chrome). 마크는 270° 트윈 아크 — 두 겹이 두 창, 두 색이 두 프로바이더다. 크기 분기는 **논리 크기**로 판정한다(1x/2x 는 같은 논리 크기의 다른 해상도이므로 같은 분기를 타야 한다 — 40px 자산에 40px 분기를 쓰면 `icon@2x` 가 `icon` 과 다른 그림이 된다). 이 스크립트의 SVG 는 **8자리 hex 를 써도 된다** — 오프라인에서 PNG 로 굽고 기기에는 PNG 가 올라가므로 위의 6자리 제약은 런타임 SVG(`render/gauge.ts`)에만 적용된다.
-- **README 스크린샷 4장도 커밋된 생성물**이다([scripts/build-readme-shots.mjs](c_ai_usage/scripts/build-readme-shots.mjs) → `c_ai_usage/docs/*.png`). 입력이 `npm test` 산출물인 `preview/*.svg` 라 **`npm test` → 스크립트** 순서다(스크립트는 SVG 가 없으면 실패한다 — 옛 preview 를 조용히 굽지 않는다). **렌더러를 고치면 같이 다시 굽는다** — 낡아도 아무 신호가 없다. ⚠ 이 PNG 는 **배경을 굽는다**: 런타임 SVG 는 캔버스를 안 칠하므로 그대로 내보내면 투명 PNG 가 되고 GitHub 라이트 모드에서 판독 숫자가 사라진다. `build-icons.mjs` 의 `--default-background-color=00000000` 을 복사하면 정확히 그 실패가 된다.
+- **README 스크린샷 4장도 커밋된 생성물**이다([scripts/build-readme-shots.mjs](c_ai_usage/scripts/build-readme-shots.mjs) → `c_ai_usage/docs/*.png`). 입력이 `npm test` 산출물인 `preview/*.svg` 라 **`npm test` → 스크립트** 순서다(스크립트는 SVG 가 없으면 실패한다 — 옛 preview 를 조용히 굽지 않는다). README 가 영문이라 입력은 **`en-` 세트**다. **렌더러를 고치면 같이 다시 굽는다** — 낡아도 아무 신호가 없다. ⚠ 이 PNG 는 **배경을 굽는다**: 런타임 SVG 는 캔버스를 안 칠하므로 그대로 내보내면 투명 PNG 가 되고 GitHub 라이트 모드에서 판독 숫자가 사라진다. `build-icons.mjs` 의 `--default-background-color=00000000` 을 복사하면 정확히 그 실패가 된다.
 - **statusline 훅은 선택 설치**다([scripts/statusline-cache.mjs](c_ai_usage/scripts/statusline-cache.mjs)). 설치하면 코딩 중 API 호출이 0이 된다(tier 1). 설치 안 해도 직접 폴링(tier 2)으로 동작한다.

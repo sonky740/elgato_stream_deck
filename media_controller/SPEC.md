@@ -11,7 +11,8 @@ Stream Deck **+** 의 다이얼 또는 일반 키로 OS 미디어 세션을 표�
 - **Now Playing 표시**: 다이얼은 터치스트립에 앨범아트 + 제목 + 가수 + 앨범, 키는 앨범아트(이미지) + 제목(타이틀) 렌더 (1s 폴링, 변경 시에만 갱신). 다이얼·키 동일한 폴링 경로, surface 별 렌더만 분기.
 - **재생 / 일시정지**: 다이얼 누름(`onDialDown`)·터치(`onTouchTap`) 또는 키 누름(`onKeyDown`)
 - **다음 / 이전 곡**: 다이얼 회전(`onDialRotate`) — 시계방향 다음, 반시계 이전. 키 기기에서는 별도 **Next / Previous 키 전용 액션**(`onKeyDown` → `next`/`previous`)
-- **Graceful degradation**: 재생 정보 없음 → "재생 없음", 브리지 영구 실패 → "설정 필요"(다이얼·키 모두). Next/Previous 키는 제어 실패 시 `showAlert`(느낌표).
+- **Graceful degradation**: 재생 정보 없음 → "재생 없음"(en: `Nothing playing`), 브리지 영구 실패 → "설정 필요"(en: `Setup needed`, 다이얼·키 모두). Next/Previous 키는 제어 실패 시 `showAlert`(느낌표).
+- **언어**: 화면 문구는 한국어/영어. Stream Deck 앱 언어가 `ko` 면 한국어이고 나머지 7개 언어는 전부 영어다(설정 항목이 아니다).
 
 ## Business Rules
 
@@ -25,6 +26,9 @@ Stream Deck **+** 의 다이얼 또는 일반 키로 OS 미디어 세션을 표�
 - 제어 명령은 OS의 "현재 now-playing 세션"에 전달된다(특정 앱 지정 불가).
 - 브리지 stream 프로세스가 정상 가동(≥3s) 후 죽으면 다음 폴링에 재기동(self-heal). 단, 즉시 종료가 연속 3회면 브리지를 영구 비활성화하고 이후 `getNowPlaying`은 에러를 던진다(초당 재기동 루프 차단 + "설정 필요" 표면화). macOS·Windows 동일.
 - 레이아웃 item `key` 와 `setFeedback` 키는 정확히 일치해야 렌더된다(`albumArt`·`title`·`artist`·`album`).
+- **화면 문구는 `streamDeck.i18n.t()` 를 거치고 키는 영문 원문이다.** 한국어는 `ko.json` 의 `Localization` 이 덮고, 그 밖의 언어는 파일이 없어 키가 그대로 나온다(= 읽히는 영어) — `en.json` 을 두지 않는 이유다. **키에 점(`.`)을 쓰면 안 된다**: 룩업이 키를 dotted path 로 훑어 조용히 번역이 안 된다(그래서 `CLAUDE.md 참고` 는 키가 아니라 값 쪽에만 있다).
+- **레이아웃 기본값(`artist: "Connecting"`)은 언어 분기가 없다.** 정적 JSON 이고 첫 `setFeedback` 전 1초 미만만 보이므로 영문으로 굳혔다.
+- **로그·`Error` 메시지는 영문 단일이다.** 읽는 쪽이 개발자라 언어 분기를 두지 않는다 — 화면에 나가는 문구와 구분되는 경계다.
 
 ## Architecture
 
@@ -55,6 +59,7 @@ src/plugin.ts                 진입점: 컨트롤러 1개 생성 → 세 액션
 | `src/media/windows.ts`                                            | Windows 브리지. `smtc-helper.exe` 에 shell out (구현, **Windows 미검증**)                          |
 | `smtc-helper/Program.cs`, `smtc-helper.csproj`                    | Windows SMTC 헬퍼(.NET) 소스 — `get`/`stream`/`send`, 앨범아트 base64                              |
 | `com.sonky.media-controller.sdPlugin/manifest.json`               | 플러그인/액션 메타. Now Playing(Encoder+Keypad)·Next·Previous(Keypad), layout·States               |
+| `com.sonky.media-controller.sdPlugin/ko.json`                     | 한국어. 최상위는 매니페스트 오버라이드(액션 UUID 키), `Localization` 은 런타임 문구                |
 | `com.sonky.media-controller.sdPlugin/layouts/now-playing.json`    | 터치스트립 커스텀 레이아웃(pixmap+text)                                                            |
 | `com.sonky.media-controller.sdPlugin/vendor/mediaremote-adapter/` | (macOS) vendored perl 스크립트 + `MediaRemoteAdapter.framework`(유니버설, ad-hoc 서명)             |
 | `com.sonky.media-controller.sdPlugin/vendor/smtc-helper/`         | (Windows) vendored `smtc-helper.exe` — 빌드 산출물(빌드 후 생성)                                   |
