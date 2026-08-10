@@ -279,8 +279,8 @@ function keyDonut(p: Slot, s: Slot, c: Ctx): string {
       weight: 700,
       anchor: 'middle',
     }),
-    // y=94 는 13px 이 링 안에 들어가는 가장 아래다 — 더 내리면 원이 좁아져 7글자가 링에 닿는다.
-    text(72, 94, fmt(p.leftMs), { size: 13, fill: MUTED, anchor: 'middle' }),
+    // y=94 는 14px 이 링 안에 들어가는 가장 아래다 — 더 내리면 원이 좁아져 7글자가 링에 닿는다.
+    text(72, 94, fmt(p.leftMs), { size: 14, fill: MUTED, anchor: 'middle' }),
     text(14, 138, s.code, { size: 10, fill: MUTED, spacing: 0.6 }),
     s.v === null
       ? text(130, 138, s.note ?? '—', {
@@ -290,7 +290,7 @@ function keyDonut(p: Slot, s: Slot, c: Ctx): string {
           anchor: 'end',
         })
       : text(40, 139, pct(s.v), { size: 15, fill: subColor(s.v, c), weight: 700 }) +
-        text(130, 138, fmt(s.leftMs), { size: 11, fill: DIM, anchor: 'end' }),
+        text(130, 138, fmt(s.leftMs), { size: 12, fill: DIM, anchor: 'end' }),
   ].join('');
 }
 
@@ -324,7 +324,7 @@ function donutCell(cx: number, w: Slot, primary: boolean, c: Ctx): string {
       spacing: 0.6,
     }),
     text(cx, 98, w.v === null && w.note !== null ? w.note : fmt(w.leftMs), {
-      size: 11,
+      size: 12,
       fill: DIM,
       anchor: 'middle',
     }),
@@ -339,14 +339,14 @@ function donutCell(cx: number, w: Slot, primary: boolean, c: Ctx): string {
  */
 function keyBar(p: Slot, s: Slot, c: Ctx): string {
   return [
-    // 12px 로 커진 남은 시간이 x=78 까지 밀려온다 — 라벨 예산이 그만큼 줄었다.
+    // 13px 로 커진 남은 시간이 x=74 까지 밀려온다 — 라벨 예산 60px 가 거기서 끝난다.
     text(14, 36, clampLabel(p.label, 60, 10, 0.6), {
       size: 10,
       fill: MUTED,
       weight: 600,
       spacing: 0.6,
     }),
-    text(130, 36, fmt(p.leftMs), { size: 12, fill: DIM, anchor: 'end' }),
+    text(130, 36, fmt(p.leftMs), { size: 13, fill: DIM, anchor: 'end' }),
     text(14, 72, pct(p.v), { size: 32, fill: numColor(p.v, c), weight: 700 }),
     segments(14, 80, 116, 10, p.v, gaugeColor(p.v, c)),
     // 1px 채움 rect 다. `<line>` 이 더 자연스럽지만 이 래스터라이저에서 확인된 적이 없다 —
@@ -355,7 +355,7 @@ function keyBar(p: Slot, s: Slot, c: Ctx): string {
     // 조역 행은 좁아 서버 라벨이 아니라 짧은 코드를 쓴다. 스코프명은 다이얼에서 보여준다.
     text(14, 118, s.code, { size: 10, fill: MUTED, weight: 600, spacing: 0.6 }),
     text(130, 118, s.v === null && s.note !== null ? s.note : fmt(s.leftMs), {
-      size: 12,
+      size: 13,
       fill: DIM,
       anchor: 'end',
     }),
@@ -374,7 +374,7 @@ function dialBar(p: Slot, s: Slot, c: Ctx): string {
       weight: 600,
       spacing: 0.6,
     }),
-    text(10, 54, fmt(p.leftMs), { size: 11, fill: DIM }),
+    text(10, 54, fmt(p.leftMs), { size: 12, fill: DIM }),
     segments(62, 34, 66, 15, p.v, gaugeColor(p.v, c)),
     text(190, 49, pct(p.v), { size: 21, fill: numColor(p.v, c), weight: 700, anchor: 'end' }),
     text(10, 76, clampLabel(s.label, 48, 10, 0.6), {
@@ -383,8 +383,8 @@ function dialBar(p: Slot, s: Slot, c: Ctx): string {
       weight: 600,
       spacing: 0.6,
     }),
-    // 노트만 9px 로 남긴다 — 문장이라 11px 로 키우면 x=62 의 세그먼트 미터 아래로 흘러든다.
-    text(10, 91, note ?? fmt(s.leftMs), { size: note === null ? 11 : 9, fill: DIM }),
+    // 노트만 9px 로 남긴다 — 문장이라 12px 로 키우면 x=62 의 세그먼트 미터 아래로 흘러든다.
+    text(10, 91, note ?? fmt(s.leftMs), { size: note === null ? 12 : 9, fill: DIM }),
     segments(62, 72, 66, 10, s.v, softColor(s.v, c)),
     text(190, 87, pct(s.v), { size: 17, fill: subColor(s.v, c), weight: 700, anchor: 'end' }),
   ].join('');
