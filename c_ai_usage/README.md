@@ -85,6 +85,8 @@ The two thresholds do not know about each other, so you can pick a warn threshol
 
 - Refresh — 1 · 3 · 5 · 10 · 30 · 60 min (default 5 min). This is a shared per-provider resource; per-instance intervals would multiply the request rate by the number of instances.
 
+**Refresh now** (button, not a setting) reads the numbers once without waiting for the interval — useful when the interval is long. Requests stay at least a minute apart from the last one, so pressing it right after a poll does nothing, and while the plugin is backing off from a failure it never shortens that wait. It only refreshes the provider whose Property Inspector you opened.
+
 ## Reading the screen
 
 Two equally sized numbers on a narrow canvas (dial 200×100, key 144×144) means neither is readable at arm's length, so the gauges are drawn as **one lead plus one supporting** value. The exception is the **dial donut**, which has width to spare: two rings of the same size sit side by side and the hierarchy is carried by color alone.

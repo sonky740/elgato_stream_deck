@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GaugeActionBase, ROTATE_THROTTLE_MS } from './gauge-action';
+import { GaugeActionBase, REFRESH_COMMAND, ROTATE_THROTTLE_MS } from './gauge-action';
 import type { ChartType } from '../render/gauge';
 import type { GaugeSettings } from '../settings';
 import type { UsageService } from '../usage/service';
@@ -8,8 +8,13 @@ import type { UsageViewModel } from '../usage/types';
 
 class TestAction extends GaugeActionBase {}
 
-function fakeService(): { service: UsageService; push: (vm: UsageViewModel) => void } {
+function fakeService(): {
+  service: UsageService;
+  push: (vm: UsageViewModel) => void;
+  refreshes: () => number;
+} {
   const listeners = new Set<(vm: UsageViewModel) => void>();
+  let refreshes = 0;
   return {
     service: {
       subscribe(listener) {
@@ -17,12 +22,16 @@ function fakeService(): { service: UsageService; push: (vm: UsageViewModel) => v
         return () => listeners.delete(listener);
       },
       setIntervalMs() {},
+      refresh() {
+        refreshes += 1;
+      },
     },
     push(vm) {
       for (const listener of listeners) {
         listener(vm);
       }
     },
+    refreshes: () => refreshes,
   };
 }
 
@@ -85,6 +94,10 @@ function appear(action: unknown, settings: GaugeSettings): any {
 
 function rotation(action: unknown, settings: GaugeSettings, ticks: number): any {
   return { action, payload: { settings, ticks } };
+}
+
+function piMessage(payload: unknown): any {
+  return { payload };
 }
 
 describe('GaugeActionBase 인터랙션', () => {
@@ -239,6 +252,25 @@ describe('GaugeActionBase 인터랙션', () => {
     await subject.onKeyDown(appear(action, { basis: 'remaining' }));
 
     expect(saved).toEqual([{ basis: 'remaining', chart: 'bar' }]);
+  });
+
+  it('PI 의 새로고침 명령이 공유 서비스의 refresh 를 부른다', () => {
+    const { service, refreshes } = fakeService();
+    const subject = new TestAction(service);
+
+    subject.onSendToPlugin(piMessage({ event: REFRESH_COMMAND }));
+    expect(refreshes()).toBe(1);
+  });
+
+  /** sdpi 의 dataSource 도 같은 채널을 쓴다 — 모르는 메시지로 요청을 쏘면 안 된다. */
+  it('알 수 없는 PI 메시지는 무시한다', () => {
+    const { service, refreshes } = fakeService();
+    const subject = new TestAction(service);
+
+    subject.onSendToPlugin(piMessage({ event: 'getItems' }));
+    subject.onSendToPlugin(piMessage(undefined));
+    subject.onSendToPlugin(piMessage('refresh'));
+    expect(refreshes()).toBe(0);
   });
 
   it('disappear 가 인스턴스 상태를 남기지 않는다', async () => {

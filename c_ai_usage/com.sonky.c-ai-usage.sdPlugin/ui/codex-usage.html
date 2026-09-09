@@ -13,6 +13,8 @@
       업그레이드될 때 locales 가 이미 있어야 `__MSG_…__` 가 치환된다.
     -->
     <script src="i18n.js"></script>
+    <!-- 버튼 클릭 → `sendToPlugin`. i18n.js 와 같은 DOMContentLoaded 에 붙는다(순서 무관). -->
+    <script src="commands.js"></script>
     <style>
       /*
         sdpi-components 의 색 토큰은 각 컴포넌트의 :host 에만 선언돼 있어(--font-color 등)
@@ -128,10 +130,23 @@
       </sdpi-select>
     </sdpi-item>
 
+    <!--
+      수동 새로고침. 설정이 아니라 명령이라 `setting` 이 없고, 클릭 전송은 ui/commands.js 가
+      맡는다(sdpi-button 은 아무것도 전송하지 않는다). 요청은 마지막 시도 기준 최소 1분 간격이고
+      실패 백오프를 앞당기지 못한다 — 도움말에 그렇게 적었다.
+    -->
+    <sdpi-item>
+      <sdpi-button
+        data-send="refresh"
+        data-i18n="refreshNow"
+      ></sdpi-button>
+    </sdpi-item>
+
     <!-- 도움말은 sdpi 컴포넌트가 아니라 `__MSG_` 가 닿지 않는다 — ui/i18n.js 가 채운다. -->
     <details class="help">
       <summary data-i18n="help"></summary>
       <p data-i18n="helpThresholds"></p>
+      <p data-i18n="helpRefresh"></p>
       <p data-i18n="helpSourceCodex"></p>
       <p data-i18n="helpLoginCodex"></p>
       <p data-i18n="helpCodexWeeklyOnly"></p>

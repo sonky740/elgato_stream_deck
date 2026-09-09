@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createUsageService } from './service';
+import { createUsageService, type UsageService } from './service';
 import type { FetchResult, LimitsSource, SourceState, UsageViewModel } from './types';
 
 vi.mock('@elgato/streamdeck', () => ({
@@ -9,6 +9,8 @@ vi.mock('@elgato/streamdeck', () => ({
 
 const INTERVAL = 300_000;
 const STALE_LIMIT = 30 * 60_000;
+/** 수동 새로고침의 최소 간격(service.ts 의 MANUAL_MIN_GAP_MS 와 같은 값). */
+const MANUAL_GAP = 60_000;
 /** 첫 fetch 의 jitter 상한(service.ts 와 같은 값). 이 시간을 넘기면 확실히 발화한다. */
 const JITTER = 5000;
 
@@ -32,11 +34,15 @@ function fakeSource(results: FetchResult[]): LimitsSource & { calls: number } {
   };
 }
 
-function collect(source: LimitsSource): { seen: UsageViewModel[]; off: () => void } {
+function collect(source: LimitsSource): {
+  seen: UsageViewModel[];
+  off: () => void;
+  service: UsageService;
+} {
   const seen: UsageViewModel[] = [];
   const service = createUsageService(source, { intervalMs: INTERVAL, staleLimitMs: STALE_LIMIT });
   const off = service.subscribe((vm) => seen.push(vm));
-  return { seen, off };
+  return { seen, off, service };
 }
 
 /** jitter 를 넘겨 첫 fetch 를 발화시키고 마이크로태스크까지 흘린다. */
@@ -49,6 +55,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('createUsageService', () => {
@@ -235,5 +242,65 @@ describe('setIntervalMs', () => {
     await vi.advanceTimersByTimeAsync(60_000 * 3);
     expect(source.calls).toBe(1);
     off();
+  });
+});
+
+describe('refresh (PI 수동 새로고침)', () => {
+  it('쿨다운을 넘겼으면 갱신 주기를 기다리지 않고 즉시 읽어온다', async () => {
+    const source = fakeSource([OK_SLOTS]);
+    const { service } = collect(source);
+    await firstFetch();
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(2);
+  });
+
+  it('쿨다운 안에서는 아무것도 하지 않는다 — 연타로 요청률을 올릴 수 없다', async () => {
+    const source = fakeSource([OK_SLOTS]);
+    const { service } = collect(source);
+    await firstFetch();
+
+    service.refresh();
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(1);
+  });
+
+  it('실패 백오프를 앞당기지 않는다 — 실패가 요청 빈도를 올리는 경로를 수동에도 열지 않는다', async () => {
+    const source = fakeSource([{ state: 'network', slots: { fiveHour: null, week: null } }]);
+    const { service } = collect(source);
+    await firstFetch();
+    // 첫 실패 뒤 대기는 interval*2 다. 쿨다운(60s)만 넘겨서 눌러도 재요청이 없어야 한다.
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(1);
+    // 원래 백오프 tick 은 그대로 남아 있다 — refresh 가 타이머를 건드리지 않았다.
+    await vi.advanceTimersByTimeAsync(INTERVAL * 2);
+    expect(source.calls).toBe(2);
+  });
+
+  it('수동 fetch 뒤 다음 자동 폴링은 그 시점부터 다시 센다 — 수동도 성공한 fetch 다', async () => {
+    // jitter 를 0 으로 고정한다. 흔들리면 "원래 tick" 과 "수동 이후 tick" 을 시각으로 구분할 수
+    // 없어, 옛 타이머가 남아 있는 구현도 통과한다.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const source = fakeSource([OK_SLOTS]);
+    const { service } = collect(source);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(2);
+
+    // 원래 tick(t=INTERVAL)을 지났다 — 그게 살아 있으면 여기서 3 이 된다.
+    await vi.advanceTimersByTimeAsync(INTERVAL - MANUAL_GAP);
+    expect(source.calls).toBe(2);
+    // 수동 fetch 시점 + INTERVAL 을 넘기면 다시 돈다.
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+    expect(source.calls).toBe(3);
   });
 });

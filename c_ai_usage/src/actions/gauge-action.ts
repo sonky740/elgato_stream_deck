@@ -6,6 +6,7 @@ import streamDeck, {
   type DidReceiveSettingsEvent,
   type KeyAction,
   type KeyDownEvent,
+  type SendToPluginEvent,
   type TouchTapEvent,
   type WillAppearEvent,
   type WillDisappearEvent,
@@ -38,6 +39,15 @@ const CANVAS_KEY = 'canvas';
  * 되돌린 이유였던 "돌려도 반응이 없다" 가 되살아난다.
  */
 export const ROTATE_THROTTLE_MS = 400;
+
+/**
+ * PI 의 수동 새로고침 명령. `ui/commands.js` 의 `data-send` 값과 같아야 한다 — 한쪽만 바꾸면
+ * 버튼이 조용히 아무 일도 하지 않는다.
+ */
+export const REFRESH_COMMAND = 'refresh';
+
+/** PI 가 이 채널로 보내는 메시지. sdpi 는 명령 이름을 `event` 에 담는다. */
+type PiMessage = { event?: string };
 
 /**
  * 사용량 게이지 액션의 공통 배관. 프로바이더별 서브클래스는 `@action({ UUID })` 만 붙인다 —
@@ -113,6 +123,18 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
     const vm = this.#lastVm.get(action.id);
     if (vm !== undefined) {
       void this.#render(action, vm);
+    }
+  }
+
+  /**
+   * PI 의 수동 새로고침 버튼. 새 값이 오면 구독 렌더가 알아서 그린다.
+   *
+   * 알 수 없는 메시지는 조용히 무시한다 — sdpi 의 dataSource 도 이 채널을 쓰므로 다른
+   * 이벤트가 섞여 들어올 수 있다.
+   */
+  override onSendToPlugin(ev: SendToPluginEvent<PiMessage, GaugeSettings>): void {
+    if (ev.payload?.event === REFRESH_COMMAND) {
+      this.#service.refresh();
     }
   }
 
