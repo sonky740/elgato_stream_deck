@@ -12,10 +12,10 @@ let statuslineCache: string;
 /** 실제 키체인을 건드리지 않고 자격증명을 주기 위해 env 오버라이드를 쓴다. */
 const FAKE_TOKEN = 'sk-ant-oat01-test-token-value';
 
-function stubFetch(
+const stubFetch = (
   body: string,
   init: { status?: number; contentType?: string } = {},
-): ReturnType<typeof vi.fn> {
+): ReturnType<typeof vi.fn> => {
   const spy = vi.fn().mockResolvedValue(
     new Response(body, {
       status: init.status ?? 200,
@@ -24,7 +24,7 @@ function stubFetch(
   );
   vi.stubGlobal('fetch', spy);
   return spy;
-}
+};
 
 beforeEach(() => {
   statuslineCache = path.join(mkdtempSync(path.join(os.tmpdir(), 'c-ai-usage-src-')), 'cache.json');

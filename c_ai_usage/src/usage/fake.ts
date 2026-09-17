@@ -12,10 +12,10 @@ import type { FetchResult, LimitsSource, Provider, SourceState, UsageWindow } fr
  *   C_AI_USAGE_FAKE=one      정상이지만 5HR 슬롯이 빈 상태 (현재 Codex 모양)
  *   C_AI_USAGE_FAKE=unknown  정상이지만 utilization 이 null (0% 와 구분되는지 확인)
  */
-export function fakeSourceFromEnv(provider: Provider): LimitsSource | null {
+export const fakeSourceFromEnv = (provider: Provider): LimitsSource | null => {
   const mode = process.env['C_AI_USAGE_FAKE'];
   return mode === undefined || mode === '' ? null : new FakeSource(provider, mode);
-}
+};
 
 const CYCLE: SourceState[] = [
   'ok',
@@ -31,9 +31,9 @@ const CYCLE: SourceState[] = [
   'shape-changed',
 ];
 
-function win(label: string, durationSec: number, utilization: number | null): UsageWindow {
+const win = (label: string, durationSec: number, utilization: number | null): UsageWindow => {
   return { label, durationSec, utilization, resetsAtMs: null };
-}
+};
 
 class FakeSource implements LimitsSource {
   readonly provider: Provider;

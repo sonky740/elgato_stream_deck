@@ -245,7 +245,7 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
  * 게이트 1 프로브를 순환시킨다. 각 SVG 는 자기 단계 번호를 ASCII 로 표시하므로 화면만 보고도
  * 어느 인코딩이 그려졌는지 알 수 있다 — 로그와 대조할 필요가 없다.
  */
-function startProbe(action: GaugeAction): () => void {
+const startProbe = (action: GaugeAction): (() => void) => {
   const stages = probeStages();
   let i = 0;
   const send = (): void => {
@@ -263,7 +263,7 @@ function startProbe(action: GaugeAction): () => void {
   send();
   const timer = setInterval(send, PROBE_INTERVAL_MS);
   return () => clearInterval(timer);
-}
+};
 
 /**
  * SVG 를 Stream Deck 이 받는 형식으로 감싼다.
@@ -275,6 +275,6 @@ function startProbe(action: GaugeAction): () => void {
  *
  * base64 data URI 는 같은 스키마의 워크드 예시 형식이고 실기기에서 확인됐다.
  */
-function encodeSvg(svg: string): string {
+const encodeSvg = (svg: string): string => {
   return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
-}
+};

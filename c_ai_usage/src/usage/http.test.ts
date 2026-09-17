@@ -6,12 +6,12 @@ import { getJson, USER_AGENT } from './http';
 
 const FIXTURES = path.join(import.meta.dirname, '..', '..', 'fixtures');
 
-function respond(body: string, init: { status?: number; contentType?: string } = {}): Response {
+const respond = (body: string, init: { status?: number; contentType?: string } = {}): Response => {
   return new Response(body, {
     status: init.status ?? 200,
     headers: { 'content-type': init.contentType ?? 'application/json' },
   });
-}
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();

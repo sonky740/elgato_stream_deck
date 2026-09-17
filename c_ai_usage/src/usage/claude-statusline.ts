@@ -10,12 +10,12 @@ import { assignSlots, type UsageSlots, type UsageWindow } from './types';
  *
  * 호출 시점에 해석한다 — 모듈 로드 시점에 고정하면 환경변수 변경이 플러그인 재시작을 요구한다.
  */
-function cacheFile(): string {
+const cacheFile = (): string => {
   return (
     process.env['C_AI_USAGE_STATUSLINE_CACHE'] ??
     path.join(os.homedir(), '.claude', 'c-ai-usage-statusline.json')
   );
-}
+};
 
 /**
  * 이 나이를 넘으면 없는 것으로 취급해 tier 2 로 넘긴다. `rate_limits` 는 세션의 첫 API 응답
@@ -26,8 +26,33 @@ const FRESH_MS = 90_000;
 const FIVE_HOUR_SEC = 5 * 60 * 60;
 const WEEK_SEC = 7 * 24 * 60 * 60;
 
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+};
+
+/**
+ * statusline 페이로드의 창 하나를 정규화한다. 필드명·시간 포맷이 HTTP 응답과 **둘 다 다르다**:
+ * `used_percentage`(HTTP 는 `utilization`), epoch 초(HTTP 는 ISO 문자열).
+ */
+const push = (out: UsageWindow[], raw: unknown, label: string, durationSec: number): void => {
+  const rec = asRecord(raw);
+  if (rec === null) {
+    return;
+  }
+  const used = rec['used_percentage'];
+  const resetsAt = rec['resets_at'];
+  out.push({
+    label,
+    durationSec,
+    utilization: typeof used === 'number' ? used : null,
+    resetsAtMs: typeof resetsAt === 'number' ? resetsAt * 1000 : null,
+  });
+};
+
 /** 신선한 캐시가 없으면 `null`. 그 경우 호출자가 직접 폴링한다. */
-export async function readStatuslineSlots(nowMs: number): Promise<UsageSlots | null> {
+export const readStatuslineSlots = async (nowMs: number): Promise<UsageSlots | null> => {
   let parsed: unknown;
   try {
     parsed = JSON.parse(await readFile(cacheFile(), 'utf8'));
@@ -47,29 +72,4 @@ export async function readStatuslineSlots(nowMs: number): Promise<UsageSlots | n
   push(windows, limits['five_hour'], '5H', FIVE_HOUR_SEC);
   push(windows, limits['seven_day'], 'WK', WEEK_SEC);
   return windows.length === 0 ? null : assignSlots(windows);
-}
-
-/**
- * statusline 페이로드의 창 하나를 정규화한다. 필드명·시간 포맷이 HTTP 응답과 **둘 다 다르다**:
- * `used_percentage`(HTTP 는 `utilization`), epoch 초(HTTP 는 ISO 문자열).
- */
-function push(out: UsageWindow[], raw: unknown, label: string, durationSec: number): void {
-  const rec = asRecord(raw);
-  if (rec === null) {
-    return;
-  }
-  const used = rec['used_percentage'];
-  const resetsAt = rec['resets_at'];
-  out.push({
-    label,
-    durationSec,
-    utilization: typeof used === 'number' ? used : null,
-    resetsAtMs: typeof resetsAt === 'number' ? resetsAt * 1000 : null,
-  });
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
+};

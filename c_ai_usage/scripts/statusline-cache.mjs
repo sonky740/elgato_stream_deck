@@ -22,6 +22,39 @@ const CACHE =
   process.env.C_AI_USAGE_STATUSLINE_CACHE ??
   path.join(os.homedir(), '.claude', 'c-ai-usage-statusline.json');
 
+const pct = (v) => {
+  return typeof v === 'number' ? `${Math.floor(v)}%` : null;
+};
+
+const statusLine = (p, rl) => {
+  const parts = [];
+  const model = p?.model?.display_name;
+  if (typeof model === 'string' && model !== '') {
+    parts.push(model);
+  }
+  const five = pct(rl?.five_hour?.used_percentage);
+  const week = pct(rl?.seven_day?.used_percentage);
+  if (five !== null) {
+    parts.push(`5H ${five}`);
+  }
+  if (week !== null) {
+    parts.push(`WK ${week}`);
+  }
+  return parts.join('  ·  ');
+};
+
+const read = (stream) => {
+  return new Promise((resolve) => {
+    let data = '';
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      data += chunk;
+    });
+    stream.on('end', () => resolve(data));
+    stream.on('error', () => resolve(data));
+  });
+};
+
 const stdin = await read(process.stdin);
 let payload = {};
 try {
@@ -43,36 +76,3 @@ if (limits !== undefined && limits !== null) {
 }
 
 process.stdout.write(statusLine(payload, limits));
-
-function statusLine(p, rl) {
-  const parts = [];
-  const model = p?.model?.display_name;
-  if (typeof model === 'string' && model !== '') {
-    parts.push(model);
-  }
-  const five = pct(rl?.five_hour?.used_percentage);
-  const week = pct(rl?.seven_day?.used_percentage);
-  if (five !== null) {
-    parts.push(`5H ${five}`);
-  }
-  if (week !== null) {
-    parts.push(`WK ${week}`);
-  }
-  return parts.join('  ·  ');
-}
-
-function pct(v) {
-  return typeof v === 'number' ? `${Math.floor(v)}%` : null;
-}
-
-function read(stream) {
-  return new Promise((resolve) => {
-    let data = '';
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk) => {
-      data += chunk;
-    });
-    stream.on('end', () => resolve(data));
-    stream.on('error', () => resolve(data));
-  });
-}

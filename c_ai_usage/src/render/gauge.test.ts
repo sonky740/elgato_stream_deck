@@ -15,18 +15,18 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
-function win(
+const win = (
   label: string,
   durationSec: number,
   utilization: number | null,
   resetsAtMs: number | null = null,
-): UsageWindow {
+): UsageWindow => {
   return { label, durationSec, utilization, resetsAtMs };
-}
+};
 
-function slots(five: number | null, week: number | null): UsageViewModel['slots'] {
+const slots = (five: number | null, week: number | null): UsageViewModel['slots'] => {
   return { fiveHour: win('5H', 18000, five), week: win('WK', 604800, week) };
-}
+};
 
 /**
  * 두 슬롯의 위험도 조합. `risk()` 의 네 등급(none·ok·warn·crit)을 주역·조역 양쪽에서 밟고,
@@ -53,13 +53,13 @@ const RISK_PAIRS: readonly (readonly [number | null, number | null])[] = [
  * 기본을 `ko` 로 두는 이유는 아래 문구 단언들이 한국어 화면을 고정하기 때문이다. 영문 화면은
  * `lang: 'en'` 을 명시하는 테스트가 따로 본다.
  */
-function opts(
+const opts = (
   over: Partial<RenderOptions> & Pick<RenderOptions, 'surface' | 'chart' | 'basis'>,
-): RenderOptions {
+): RenderOptions => {
   return { thresholds: DEFAULT_THRESHOLDS, lang: 'ko', ...over };
-}
+};
 
-function vm(over: Partial<UsageViewModel> = {}): UsageViewModel {
+const vm = (over: Partial<UsageViewModel> = {}): UsageViewModel => {
   return {
     provider: 'claude',
     slots: { fiveHour: win('5H', 18000, 37), week: win('WK', 604800, 26) },
@@ -67,7 +67,7 @@ function vm(over: Partial<UsageViewModel> = {}): UsageViewModel {
     fetchedAtMs: FIXED_NOW,
     ...over,
   };
-}
+};
 
 const FAILURE_STATES: readonly Exclude<SourceState, 'ok' | 'stale'>[] = [
   'loading',

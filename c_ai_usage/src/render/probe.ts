@@ -22,7 +22,7 @@ export type ProbeStage = { name: string; describe: string; payload: string };
 /** 12시에서 시계방향 75% 지점까지의 호. 게이지가 쓰는 것과 같은 형태다. */
 const ARC = 'M 100 20 A 30 30 0 1 1 78.2 71.3';
 
-function testSvg(stageNo: number): string {
+const testSvg = (stageNo: number): string => {
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">',
     '<rect width="200" height="100" fill="#16181c"/>',
@@ -37,9 +37,9 @@ function testSvg(stageNo: number): string {
     '<text x="100" y="90" font-family="Helvetica,Arial,sans-serif" font-size="12" fill="#f4f4f5" text-anchor="middle">KO:한글</text>',
     '</svg>',
   ].join('');
-}
+};
 
-export function probeStages(): ProbeStage[] {
+export const probeStages = (): ProbeStage[] => {
   return [
     { name: '1 raw-svg', describe: 'raw <svg> string', payload: testSvg(1) },
     {
@@ -53,16 +53,16 @@ export function probeStages(): ProbeStage[] {
       payload: `data:image/svg+xml;charset=utf8,${encodeURIComponent(testSvg(3))}`,
     },
   ];
-}
+};
 
-export function probeEnabled(): boolean {
+export const probeEnabled = (): boolean => {
   const v = process.env['C_AI_USAGE_SVG_PROBE'];
   if (v !== undefined && v !== '' && v !== '0') {
     return true;
   }
   // 번들은 `<plugin>.sdPlugin/bin/plugin.js` 로 나오므로 한 단계 위가 플러그인 루트다.
   return existsSync(new URL('../.svg-probe', import.meta.url));
-}
+};
 
 /** 단계 전환 간격. 1차 관찰에서 3초가 짧아 읽기 어려웠다. */
 export const PROBE_INTERVAL_MS = 5000;

@@ -27,7 +27,7 @@ const OK_SLOTS: FetchResult = {
 /** 요청을 만들지 않는 실패. 자격증명 만료 선판정이 내는 결과다. */
 const EXPIRED: FetchResult = { state: 'expired', slots: { fiveHour: null, week: null } };
 
-function fakeSource(results: FetchResult[]): LimitsSource & { calls: number } {
+const fakeSource = (results: FetchResult[]): LimitsSource & { calls: number } => {
   let i = 0;
   return {
     provider: 'claude',
@@ -37,23 +37,25 @@ function fakeSource(results: FetchResult[]): LimitsSource & { calls: number } {
       return results[Math.min(i++, results.length - 1)] ?? OK_SLOTS;
     },
   };
-}
+};
 
-function collect(source: LimitsSource): {
+const collect = (
+  source: LimitsSource,
+): {
   seen: UsageViewModel[];
   off: () => void;
   service: UsageService;
-} {
+} => {
   const seen: UsageViewModel[] = [];
   const service = createUsageService(source, { intervalMs: INTERVAL, staleLimitMs: STALE_LIMIT });
   const off = service.subscribe((vm) => seen.push(vm));
   return { seen, off, service };
-}
+};
 
 /** jitter 를 넘겨 첫 fetch 를 발화시키고 마이크로태스크까지 흘린다. */
-async function firstFetch(): Promise<void> {
+const firstFetch = async (): Promise<void> => {
   await vi.advanceTimersByTimeAsync(JITTER + 1);
-}
+};
 
 beforeEach(() => {
   vi.useFakeTimers();

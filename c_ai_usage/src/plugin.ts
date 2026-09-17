@@ -36,11 +36,11 @@ streamDeck.logger.info('svg encoding: base64 data URI (raw SVG is not drawn in p
 streamDeck.actions.registerAction(new ClaudeUsageAction(claude));
 streamDeck.actions.registerAction(new CodexUsageAction(codex));
 
-function applyPollInterval(settings: GlobalSettings | undefined): void {
+const applyPollInterval = (settings: GlobalSettings | undefined): void => {
   const ms = resolvePollMs(settings);
   claude.setIntervalMs(ms);
   codex.setIntervalMs(ms);
-}
+};
 
 streamDeck.settings.onDidReceiveGlobalSettings<GlobalSettings>((ev) => {
   applyPollInterval(ev.settings);

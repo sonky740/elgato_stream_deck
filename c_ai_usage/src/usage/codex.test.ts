@@ -7,9 +7,9 @@ import { CodexSource, parseUsage } from './codex';
 
 const FIXTURES = path.join(import.meta.dirname, '..', '..', 'fixtures');
 
-function fixture(name: string): unknown {
+const fixture = (name: string): unknown => {
   return JSON.parse(readFileSync(path.join(FIXTURES, name), 'utf8'));
-}
+};
 
 describe('parseUsage (codex)', () => {
   it('실측 응답에서 주간 창만 뽑고 5HR 슬롯은 공란으로 둔다', () => {
@@ -123,12 +123,12 @@ describe('CodexSource', () => {
   });
 
   /** exp 를 미래로 둔 JWT. 서명은 검증하지 않으므로 형식만 맞으면 된다. */
-  function jwt(expSec: number): string {
+  const jwt = (expSec: number): string => {
     const payload = Buffer.from(JSON.stringify({ exp: expSec }), 'utf8').toString('base64url');
     return `eyJhbGciOiJSUzI1NiJ9.${payload}.sig`;
-  }
+  };
 
-  function writeAuth(expSec: number): void {
+  const writeAuth = (expSec: number): void => {
     writeFileSync(
       path.join(home, 'auth.json'),
       JSON.stringify({
@@ -136,7 +136,7 @@ describe('CodexSource', () => {
         tokens: { access_token: jwt(expSec), account_id: 'acct-1' },
       }),
     );
-  }
+  };
 
   it('auth.json 이 없으면 요청하지 않고 no-credential', async () => {
     const spy = vi.fn();

@@ -19,6 +19,52 @@ export type CodexCredential = {
   expiresAtMs: number | null;
 };
 
+/** 만료 선판정. `null`(만료 시각 미지)은 만료로 보지 않는다. */
+export const isExpired = (expiresAtMs: number | null, nowMs: number): boolean => {
+  return expiresAtMs !== null && expiresAtMs <= nowMs;
+};
+
+const readKeychain = (): Promise<unknown> => {
+  const account = os.userInfo().username;
+  return new Promise((resolve) => {
+    execFile(
+      'security',
+      ['find-generic-password', '-s', 'Claude Code-credentials', '-a', account, '-w'],
+      { timeout: READ_TIMEOUT_MS },
+      (err, stdout) => {
+        if (err !== null || stdout === '') {
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout));
+        } catch {
+          resolve(null);
+        }
+      },
+    );
+  });
+};
+
+const readJsonFile = async (file: string): Promise<unknown> => {
+  try {
+    return JSON.parse(await readFile(file, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+const readClaudeCredentialFile = (): Promise<unknown> => {
+  const dir = process.env['CLAUDE_CONFIG_DIR'] ?? path.join(os.homedir(), '.claude');
+  return readJsonFile(path.join(dir, '.credentials.json'));
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+};
+
 /**
  * Claude Code 의 OAuth access token 을 읽는다. macOS 는 키체인, 그 외는 파일.
  *
@@ -26,7 +72,7 @@ export type CodexCredential = {
  * 여기서 갱신하면 Claude Code CLI 가 무효 토큰을 들고 남아 로그아웃된다(ai-limits-plan.md §4.1).
  * 만료 시엔 재로그인 안내를 렌더하고, CLI 가 다음 실행에서 갱신하면 다음 폴링에 자동 복구된다.
  */
-export async function readClaudeCredential(): Promise<ClaudeCredential | null> {
+export const readClaudeCredential = async (): Promise<ClaudeCredential | null> => {
   const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;
   if (envToken !== undefined && envToken !== '') {
     return { accessToken: envToken, expiresAtMs: null };
@@ -51,10 +97,25 @@ export async function readClaudeCredential(): Promise<ClaudeCredential | null> {
     accessToken,
     expiresAtMs: typeof expiresAt === 'number' ? expiresAt : null,
   };
-}
+};
+
+/** JWT payload 의 `exp`(초) → epoch ms. 서명은 검증하지 않는다 — 만료 판정에만 쓴다. */
+const jwtExpiryMs = (jwt: string): number | null => {
+  const payload = jwt.split('.')[1];
+  if (payload === undefined) {
+    return null;
+  }
+  try {
+    const json: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    const exp = asRecord(json)?.['exp'];
+    return typeof exp === 'number' ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
 
 /** Codex CLI 의 ChatGPT access token. Claude 와 달리 만료를 JWT 에서 직접 파내야 한다. */
-export async function readCodexCredential(): Promise<CodexCredential | null> {
+export const readCodexCredential = async (): Promise<CodexCredential | null> => {
   const home = process.env['CODEX_HOME'] ?? path.join(os.homedir(), '.codex');
   const parsed = await readJsonFile(path.join(home, 'auth.json'));
   const tokens = asRecord(asRecord(parsed)?.['tokens']);
@@ -71,65 +132,4 @@ export async function readCodexCredential(): Promise<CodexCredential | null> {
     accountId: typeof accountId === 'string' ? accountId : null,
     expiresAtMs: jwtExpiryMs(accessToken),
   };
-}
-
-/** 만료 선판정. `null`(만료 시각 미지)은 만료로 보지 않는다. */
-export function isExpired(expiresAtMs: number | null, nowMs: number): boolean {
-  return expiresAtMs !== null && expiresAtMs <= nowMs;
-}
-
-/** JWT payload 의 `exp`(초) → epoch ms. 서명은 검증하지 않는다 — 만료 판정에만 쓴다. */
-function jwtExpiryMs(jwt: string): number | null {
-  const payload = jwt.split('.')[1];
-  if (payload === undefined) {
-    return null;
-  }
-  try {
-    const json: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    const exp = asRecord(json)?.['exp'];
-    return typeof exp === 'number' ? exp * 1000 : null;
-  } catch {
-    return null;
-  }
-}
-
-function readKeychain(): Promise<unknown> {
-  const account = os.userInfo().username;
-  return new Promise((resolve) => {
-    execFile(
-      'security',
-      ['find-generic-password', '-s', 'Claude Code-credentials', '-a', account, '-w'],
-      { timeout: READ_TIMEOUT_MS },
-      (err, stdout) => {
-        if (err !== null || stdout === '') {
-          resolve(null);
-          return;
-        }
-        try {
-          resolve(JSON.parse(stdout));
-        } catch {
-          resolve(null);
-        }
-      },
-    );
-  });
-}
-
-function readClaudeCredentialFile(): Promise<unknown> {
-  const dir = process.env['CLAUDE_CONFIG_DIR'] ?? path.join(os.homedir(), '.claude');
-  return readJsonFile(path.join(dir, '.credentials.json'));
-}
-
-async function readJsonFile(file: string): Promise<unknown> {
-  try {
-    return JSON.parse(await readFile(file, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
+};

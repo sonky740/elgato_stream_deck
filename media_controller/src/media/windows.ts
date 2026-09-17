@@ -49,7 +49,7 @@ type HelperPayload = {
   artworkMimeType?: string;
 };
 
-function toNowPlaying(payload: HelperPayload | null | undefined): NowPlaying | null {
+const toNowPlaying = (payload: HelperPayload | null | undefined): NowPlaying | null => {
   if (!payload || typeof payload.title !== 'string' || payload.title.length === 0) {
     return null;
   }
@@ -64,7 +64,7 @@ function toNowPlaying(payload: HelperPayload | null | undefined): NowPlaying | n
     isPlaying: payload.playing === true,
     artworkDataUri,
   };
-}
+};
 
 export class WindowsMediaController implements MediaController {
   #stream: ChildProcessWithoutNullStreams | undefined;

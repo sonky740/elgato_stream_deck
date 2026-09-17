@@ -9,6 +9,24 @@ const TIMEOUT_MS = 10_000;
 export type JsonResponse =
   { kind: 'json'; body: unknown } | { kind: 'failed'; state: SourceState; status: number | null };
 
+const looksLikeHtml = (res: Response, text: string): boolean => {
+  const type = res.headers.get('content-type') ?? '';
+  return type.includes('text/html') || text.trimStart().startsWith('<');
+};
+
+const statusToState = (status: number, body: string): SourceState => {
+  if (status === 401) {
+    return 'expired';
+  }
+  if (status === 403) {
+    return body.includes('revoked') ? 'revoked' : 'forbidden';
+  }
+  if (status === 429) {
+    return 'throttled';
+  }
+  return 'network';
+};
+
 /**
  * JSON GET 1회. 실패를 throw 하지 않고 {@link SourceState} 로 되돌린다.
  *
@@ -16,7 +34,10 @@ export type JsonResponse =
  * status 403 에 HTML 챌린지 본문을 준다. 그걸 JSON.parse 하면 인증 실패와 구분할 수 없는
  * 엉뚱한 메시지로 throw 되어, 진단 불가능한 일반 에러로 렌더된다(ai-limits-plan.md §4.2).
  */
-export async function getJson(url: string, headers: Record<string, string>): Promise<JsonResponse> {
+export const getJson = async (
+  url: string,
+  headers: Record<string, string>,
+): Promise<JsonResponse> => {
   let res: Response;
   try {
     res = await fetch(url, {
@@ -40,22 +61,4 @@ export async function getJson(url: string, headers: Record<string, string>): Pro
   } catch {
     return { kind: 'failed', state: 'shape-changed', status: res.status };
   }
-}
-
-function looksLikeHtml(res: Response, text: string): boolean {
-  const type = res.headers.get('content-type') ?? '';
-  return type.includes('text/html') || text.trimStart().startsWith('<');
-}
-
-function statusToState(status: number, body: string): SourceState {
-  if (status === 401) {
-    return 'expired';
-  }
-  if (status === 403) {
-    return body.includes('revoked') ? 'revoked' : 'forbidden';
-  }
-  if (status === 429) {
-    return 'throttled';
-  }
-  return 'network';
-}
+};

@@ -87,16 +87,16 @@ if (missing.length > 0) {
 }
 
 /** 기기 판. 런타임 SVG 가 칠하지 않는 배경을 대신하고, 그림자로 화면을 배경에서 띄운다. */
-function device(item) {
+const device = (item) => {
   const svg = readFileSync(path.join(PREVIEW, item.src), 'utf8')
     .replace(/width="\d+"/, `width="${item.w * item.scale}"`)
     .replace(/height="\d+"/, `height="${item.h * item.scale}"`);
   const caption =
     item.caption === undefined ? '' : `<figcaption class="caption">${item.caption}</figcaption>`;
   return `<figure class="device"><div class="screen">${svg}</div>${caption}</figure>`;
-}
+};
 
-function frame(shot) {
+const frame = (shot) => {
   const stage = `<div class="stage">${shot.items.map(device).join('')}</div>`;
   const copy = `<hgroup class="copy"><h1>${shot.headline}</h1><p>${shot.sub}</p></hgroup>`;
   return `<!doctype html><meta charset="utf-8"><style>
@@ -121,7 +121,7 @@ function frame(shot) {
       box-shadow:0 34px 90px rgba(0,0,0,.55);display:flex}
     .caption{font-size:28px;color:${MUTED};letter-spacing:.5px}
   </style><div class="page ${shot.kind}">${copy}${stage}</div>`;
-}
+};
 
 /**
  * 스토어 앱 아이콘. 플러그인 내부 아이콘(256/512)과 달리 **워드마크를 넣는다** — 제품 카드에서는
@@ -129,7 +129,7 @@ function frame(shot) {
  * 올리고 아래에 이름 띠를 두므로 내부 아이콘을 그대로 줄여 쓸 수 없다(그 배치는 아크가 캔버스를
  * 꽉 채운다). 기하는 [lib/mark-svg.mjs](lib/mark-svg.mjs) 의 `arc()` 로 그린다.
  */
-function appIconHtml() {
+const appIconHtml = () => {
   const px = APP_ICON;
   const svg = svgDoc(px, [
     `<rect x="0" y="0" width="${px}" height="${px}" rx="${px * 0.1875}" fill="${BG}"/>`,
@@ -141,9 +141,9 @@ function appIconHtml() {
   return `<!doctype html><meta charset="utf-8"><style>
     html,body{margin:0;padding:0;background:transparent}svg{display:block}
   </style>${svg}`;
-}
+};
 
-function shoot({ name, html, w, h, transparent }) {
+const shoot = ({ name, html, w, h, transparent }) => {
   const file = path.join(TMP, `${name}.html`);
   writeFileSync(file, html);
   const dest = path.join(OUT, `${name}.png`);
@@ -162,7 +162,7 @@ function shoot({ name, html, w, h, transparent }) {
     { stdio: 'ignore' },
   );
   console.log(`${name}.png  ${w}×${h}`);
-}
+};
 
 rmSync(TMP, { recursive: true, force: true });
 rmSync(OUT, { recursive: true, force: true });

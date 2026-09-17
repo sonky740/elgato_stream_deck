@@ -8,35 +8,8 @@ import type { UsageViewModel } from '../usage/types';
 
 class TestAction extends GaugeActionBase {}
 
-function fakeService(): {
-  service: UsageService;
-  push: (vm: UsageViewModel) => void;
-  refreshes: () => number;
-} {
-  const listeners = new Set<(vm: UsageViewModel) => void>();
-  let refreshes = 0;
-  return {
-    service: {
-      subscribe(listener) {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-      setIntervalMs() {},
-      refresh() {
-        refreshes += 1;
-      },
-    },
-    push(vm) {
-      for (const listener of listeners) {
-        listener(vm);
-      }
-    },
-    refreshes: () => refreshes,
-  };
-}
-
 /** 전송된 페이로드와 저장된 설정을 기록하는 최소 액션. 실제 타입은 SDK 가 봉인돼 있어 캐스팅한다. */
-function fakeAction(surface: 'dial' | 'key') {
+const fakeAction = (surface: 'dial' | 'key') => {
   const sent: string[] = [];
   const saved: GaugeSettings[] = [];
   const action = {
@@ -57,25 +30,25 @@ function fakeAction(surface: 'dial' | 'key') {
     },
   };
   return { action, sent, saved };
-}
+};
 
-function lastSvg(sent: readonly string[]): string {
+const lastSvg = (sent: readonly string[]): string => {
   const payload = sent.at(-1) ?? '';
   return Buffer.from(payload.replace(/^data:image\/svg\+xml;base64,/, ''), 'base64').toString(
     'utf8',
   );
-}
+};
 
 /**
  * 마지막으로 전송된 SVG 가 어느 차트인지. 도넛만 트랙을 **stroke** 로 그린다(세그먼트는 fill).
  *
  * `<circle>` 유무로 보면 안 된다 — 헤더의 프로바이더 점이 두 차트에 다 있다.
  */
-function lastChart(sent: readonly string[]): ChartType {
+const lastChart = (sent: readonly string[]): ChartType => {
   return lastSvg(sent).includes('stroke="#32363e"') ? 'donut' : 'bar';
-}
+};
 
-function vm(utilization = 37): UsageViewModel {
+const vm = (utilization = 37): UsageViewModel => {
   return {
     provider: 'claude',
     slots: {
@@ -85,20 +58,47 @@ function vm(utilization = 37): UsageViewModel {
     state: 'ok',
     fetchedAtMs: Date.parse('2026-08-04T02:00:00Z'),
   };
-}
+};
+
+const fakeService = (): {
+  service: UsageService;
+  push: (vm: UsageViewModel) => void;
+  refreshes: () => number;
+} => {
+  const listeners = new Set<(vm: UsageViewModel) => void>();
+  let refreshes = 0;
+  return {
+    service: {
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      setIntervalMs() {},
+      refresh() {
+        refreshes += 1;
+      },
+    },
+    push(vm) {
+      for (const listener of listeners) {
+        listener(vm);
+      }
+    },
+    refreshes: () => refreshes,
+  };
+};
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- SDK 이벤트/액션 타입을 최소 페이크로 대체한다 */
-function appear(action: unknown, settings: GaugeSettings): any {
+const appear = (action: unknown, settings: GaugeSettings): any => {
   return { action, payload: { settings } };
-}
+};
 
-function rotation(action: unknown, settings: GaugeSettings, ticks: number): any {
+const rotation = (action: unknown, settings: GaugeSettings, ticks: number): any => {
   return { action, payload: { settings, ticks } };
-}
+};
 
-function piMessage(payload: unknown): any {
+const piMessage = (payload: unknown): any => {
   return { payload };
-}
+};
 
 describe('GaugeActionBase 인터랙션', () => {
   // 회전 스로틀이 Date.now() 를 보므로 시계를 고정한다. 실시계로는 연속 회전이 전부

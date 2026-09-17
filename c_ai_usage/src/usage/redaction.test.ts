@@ -12,12 +12,12 @@ const logger = {
   info: (...args: unknown[]) => logged.push(args.map(stringify).join(' ')),
 };
 
-function stringify(v: unknown): string {
+const stringify = (v: unknown): string => {
   if (v instanceof Error) {
     return `${v.name}: ${v.message}\n${v.stack ?? ''}`;
   }
   return typeof v === 'string' ? v : JSON.stringify(v);
-}
+};
 
 vi.mock('@elgato/streamdeck', () => ({ default: { logger } }));
 
@@ -31,12 +31,12 @@ const FORBIDDEN: [string, RegExp][] = [
   ['Bearer 값', /Bearer\s+\S{12,}/],
 ];
 
-function assertClean(): void {
+const assertClean = (): void => {
   const blob = logged.join('\n');
   for (const [name, pattern] of FORBIDDEN) {
     expect(pattern.test(blob), `${name} 이 로그로 흘렀다: ${blob.slice(0, 200)}`).toBe(false);
   }
-}
+};
 
 beforeEach(() => {
   // subscribe 가 첫 폴링을 예약하므로 서비스 생성 전에 가짜 타이머로 바꿔야 한다.

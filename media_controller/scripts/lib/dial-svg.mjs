@@ -32,7 +32,7 @@ const item = (key) => {
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** 레이아웃 text item 을 그린다. rect 안 세로 중앙에 놓는다. */
-function text(key, value) {
+const text = (key, value) => {
   const { rect, font, color } = item(key);
   const [x, y, , h] = rect;
   const size = font.size;
@@ -41,23 +41,23 @@ function text(key, value) {
     `<text x="${x}" y="${baseline.toFixed(1)}" font-family="${FONT}" font-size="${size}"` +
     ` font-weight="${font.weight}" fill="${color}">${esc(value)}</text>`
   );
-}
+};
 
 /**
  * 앨범아트 자리. 기기에서는 플레이어가 준 커버가 들어간다 — 실제 앨범 커버를 쓰지 않으려고
  * 추상 도형으로 대신한다. rect 는 레이아웃이 정한다.
  */
-function albumArt() {
+const albumArt = () => {
   const [x, y, w, h] = item('albumArt').rect;
   return (
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#2a2f3a"/>` +
     `<circle cx="${x + w * 0.5}" cy="${y + h * 0.5}" r="${w * 0.3}" fill="none" stroke="#4d566a" stroke-width="${w * 0.09}"/>` +
     `<circle cx="${x + w * 0.5}" cy="${y + h * 0.5}" r="${w * 0.07}" fill="#4d566a"/>`
   );
-}
+};
 
 /** @param {{title: string, artist: string, album: string}} track */
-export function dialSvg(track) {
+export const dialSvg = (track) => {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">` +
     albumArt() +
@@ -66,4 +66,4 @@ export function dialSvg(track) {
     text('album', track.album) +
     `</svg>`
   );
-}
+};

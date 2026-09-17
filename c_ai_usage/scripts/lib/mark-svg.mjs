@@ -32,7 +32,7 @@ export const MONO_DIM = `${MONO}8c`;
  * 작아질수록 스트로크를 줄이고 두 아크를 벌린다 — 그대로 축소하면 간격이 1~2px 로 떨어져
  * 두 겹이 한 덩어리로 보이고, 두 겹이 두 창을 뜻한다는 의미가 사라진다.
  */
-export function geom(logical) {
+export const geom = (logical) => {
   if (logical <= 24) {
     return { cy: 0.53, r1: 0.36, r2: 0.15, w: 0.11 };
   }
@@ -40,21 +40,25 @@ export function geom(logical) {
     return { cy: 0.52, r1: 0.35, r2: 0.16, w: 0.115 };
   }
   return { cy: 150 / 288, r1: 94 / 288, r2: 56 / 288, w: 24 / 288 };
-}
+};
 
 const r1 = (n) => Math.round(n * 100) / 100;
 
 /** 12시에서 시계방향. 270° 는 한 A 명령으로 그려진다(largeArc=1). */
-export function arc(cx, cy, r, fromDeg, toDeg, stroke, width) {
+export const arc = (cx, cy, r, fromDeg, toDeg, stroke, width) => {
   const at = (deg) => {
     const rad = (deg * Math.PI) / 180;
     return `${r1(cx + r * Math.sin(rad))} ${r1(cy - r * Math.cos(rad))}`;
   };
   const large = toDeg - fromDeg > 180 ? 1 : 0;
   return `<path d="M ${at(fromDeg)} A ${r1(r)} ${r1(r)} 0 ${large} 1 ${at(toDeg)}" fill="none" stroke="${stroke}" stroke-width="${r1(width)}" stroke-linecap="round"/>`;
-}
+};
 
-export function mark({ logical, scale, outer, inner, plate }) {
+export const svgDoc = (px, parts) => {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${px} ${px}">${parts.filter(Boolean).join('')}</svg>`;
+};
+
+export const mark = ({ logical, scale, outer, inner, plate }) => {
   const px = logical * scale;
   const g = geom(logical);
   return svgDoc(px, [
@@ -64,8 +68,4 @@ export function mark({ logical, scale, outer, inner, plate }) {
     arc(px / 2, px * g.cy, px * g.r1, -135, 135, outer, px * g.w),
     arc(px / 2, px * g.cy, px * g.r2, -135, 135, inner, px * g.w),
   ]);
-}
-
-export function svgDoc(px, parts) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${px} ${px}">${parts.filter(Boolean).join('')}</svg>`;
-}
+};

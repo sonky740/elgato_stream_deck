@@ -49,7 +49,7 @@ type AdapterPayload = {
   artworkMimeType?: string;
 };
 
-function toNowPlaying(payload: AdapterPayload | null | undefined): NowPlaying | null {
+const toNowPlaying = (payload: AdapterPayload | null | undefined): NowPlaying | null => {
   // 어댑터의 필수 키는 title/playing/processIdentifier. title 이 없으면 재생 정보 없음.
   if (!payload || typeof payload.title !== 'string' || payload.title.length === 0) {
     return null;
@@ -65,7 +65,7 @@ function toNowPlaying(payload: AdapterPayload | null | undefined): NowPlaying | 
     isPlaying: payload.playing === true,
     artworkDataUri,
   };
-}
+};
 
 export class DarwinMediaController implements MediaController {
   #stream: ChildProcessWithoutNullStreams | undefined;

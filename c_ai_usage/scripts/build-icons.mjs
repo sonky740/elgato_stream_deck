@@ -28,7 +28,7 @@ const r1 = (n) => Math.round(n * 100) / 100;
  * 키 기본 이미지. 144 캔버스로 설계됐고 1x(72)는 그 절반으로 굽는다.
  * 프로바이더 이름은 144 에서 읽히는 크기다 — 72 자산에서는 장식으로 남는다(실기기는 @2x 를 쓴다).
  */
-function keyIcon({ provider, scale }) {
+const keyIcon = ({ provider, scale }) => {
   const s = (n) => r1(n * scale);
   const px = 144 * scale;
   return svgDoc(px, [
@@ -37,7 +37,7 @@ function keyIcon({ provider, scale }) {
     arc(s(72), s(76), s(28), -135, 135, dim(provider), s(12)),
     `<text x="${s(72)}" y="${s(130)}" font-family="-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="${s(11)}" fill="${MUTED}" font-weight="600" text-anchor="middle" letter-spacing="${s(1.2)}">${provider === 'claude' ? 'CLAUDE' : 'CODEX'}</text>`,
   ]);
-}
+};
 
 /** 자산 목록. `logical` 은 Stream Deck 이 표시하는 논리 크기이고 파일은 1x/2x 두 장이다. */
 const ASSETS = [

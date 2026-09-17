@@ -54,26 +54,39 @@ export const MAX_POLL_SEC = 3600;
 /** 순환 순서이자 유효값 목록. 두 곳에 나눠 두면 차트를 추가할 때 한쪽을 빼먹는다. */
 export const CHART_TYPES: readonly ChartType[] = ['donut', 'bar'];
 
-export function resolveChart(s: GaugeSettings | undefined): ChartType {
+export const resolveChart = (s: GaugeSettings | undefined): ChartType => {
   const chart = s?.chart;
   return chart !== undefined && CHART_TYPES.includes(chart) ? chart : DEFAULT_CHART;
-}
+};
 
 /** `step` 칸 이동한 차트. 양끝에서 감싸므로 같은 방향으로 계속 돌려도 멈추지 않는다. */
-export function nextChart(current: ChartType, step: number): ChartType {
+export const nextChart = (current: ChartType, step: number): ChartType => {
   const len = CHART_TYPES.length;
   const i = CHART_TYPES.indexOf(current);
   return CHART_TYPES[(((i + step) % len) + len) % len] ?? DEFAULT_CHART;
-}
+};
 
 /** 기준 전환. 2종뿐이라 순환이 아니라 뒤집기다. */
-export function nextBasis(current: Basis): Basis {
+export const nextBasis = (current: Basis): Basis => {
   return current === 'used' ? 'remaining' : 'used';
-}
+};
 
-export function resolveBasis(s: GaugeSettings | undefined): Basis {
+export const resolveBasis = (s: GaugeSettings | undefined): Basis => {
   return s?.basis === 'remaining' || s?.basis === 'used' ? s.basis : DEFAULT_BASIS;
-}
+};
+
+/**
+ * 0 이하를 "없음"으로 보고 기본값으로 돌린다 — `Number('')` 와 `Number(null)` 이 **0** 이므로,
+ * 이 가드가 없으면 빈 값이 "임계 0%"(= 전부 경고색)로 조용히 해석된다. 0 을 clamp 로만 막으면
+ * 하한 1% 가 되어 증상이 같다.
+ */
+const clampThreshold = (raw: unknown, fallback: number): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    return fallback;
+  }
+  return Math.min(Math.max(Math.round(n), MIN_THRESHOLD), MAX_THRESHOLD);
+};
 
 /**
  * 임계값을 정규화한다. `risk()` 가 `warnAt <= critAt` 를 전제하므로 그 불변식을 여기서 세운다.
@@ -85,33 +98,20 @@ export function resolveBasis(s: GaugeSettings | undefined): Basis {
  *
  * `Number()` 로 받는 이유는 폴링 간격과 같다 — PI 가 문자열로 줄 수 있다.
  */
-export function resolveThresholds(s: GaugeSettings | undefined): Thresholds {
+export const resolveThresholds = (s: GaugeSettings | undefined): Thresholds => {
   const critAt = clampThreshold(s?.critAt, DEFAULT_CRIT_AT);
   const warnAt = clampThreshold(s?.warnAt, DEFAULT_WARN_AT);
   return { warnAt: Math.min(warnAt, critAt), critAt };
-}
-
-/**
- * 0 이하를 "없음"으로 보고 기본값으로 돌린다 — `Number('')` 와 `Number(null)` 이 **0** 이므로,
- * 이 가드가 없으면 빈 값이 "임계 0%"(= 전부 경고색)로 조용히 해석된다. 0 을 clamp 로만 막으면
- * 하한 1% 가 되어 증상이 같다.
- */
-function clampThreshold(raw: unknown, fallback: number): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n <= 0) {
-    return fallback;
-  }
-  return Math.min(Math.max(Math.round(n), MIN_THRESHOLD), MAX_THRESHOLD);
-}
+};
 
 /**
  * 전역 설정의 폴링 간격을 ms 로 정규화한다. PI 의 숫자 입력은 문자열로 올 수 있고 사용자가
  * 임의값을 넣을 수 있으므로 여기서 clamp 한다 — 렌더나 네트워크 계층이 아니라 경계에서.
  */
-export function resolvePollMs(s: GlobalSettings | undefined): number {
+export const resolvePollMs = (s: GlobalSettings | undefined): number => {
   const raw = Number(s?.pollIntervalSec);
   if (!Number.isFinite(raw)) {
     return DEFAULT_POLL_SEC * 1000;
   }
   return Math.min(Math.max(Math.round(raw), MIN_POLL_SEC), MAX_POLL_SEC) * 1000;
-}
+};

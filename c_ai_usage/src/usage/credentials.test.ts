@@ -8,9 +8,9 @@ import { isExpired, readClaudeCredential, readCodexCredential } from './credenti
 let dir: string;
 const realPlatform = process.platform;
 
-function setPlatform(value: string): void {
+const setPlatform = (value: string): void => {
   Object.defineProperty(process, 'platform', { value, configurable: true });
-}
+};
 
 beforeEach(() => {
   dir = mkdtempSync(path.join(os.tmpdir(), 'c-ai-usage-cred-'));

@@ -154,82 +154,81 @@ type Slot = {
 
 type Ctx = { basis: Basis; provider: Provider; thresholds: Thresholds };
 
-/**
- * 뷰모델 하나를 SVG 문자열로 그린다. 순수 함수다 — 픽스처만으로 전 상태를 검증할 수 있다.
- * `nowMs` 를 인자로 받는 이유가 그것이다: stale 나이와 남은 시간이 `Date.now()` 를 직접
- * 부르면 같은 입력이 호출 시점마다 다른 SVG 를 내 스냅샷도 프리뷰도 결정적이지 않게 된다.
- *
- * 캔버스 전체를 매번 다시 그린다. 그래서 슬롯이 비어도, 차트 종류가 바뀌어도 레이아웃 item 을
- * 조건부로 만들 필요가 없다(layout item 의 type/key/rect 는 런타임 변경 불가).
- *
- * 도넛 호는 `stroke-dasharray` 가 아니라 arc path(`A` 명령)로 그린다 — dasharray 보다
- * 훨씬 기본적인 기능이라 래스터라이저 호환 리스크가 낮다.
- *
- * ⚠ **캔버스를 칠하지 않는다** — 스트림덱 프로필 배경이 그대로 비친다. 대신 어두운 배경이
- * 코드 밖의 **가정**이 됐다({@link ACCENT_DIM} 참고).
- *
- * ⚠ 남은 시간은 렌더 시점 기준으로 굳는다. 다시 그리는 계기는 폴링뿐이므로 표시된
- * 카운트다운은 최대 폴링 간격만큼 낡을 수 있다(SPEC §19).
- */
-export function renderGauge(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
-  const { w, h } = CANVAS[opts.surface];
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
-    header(vm, opts, nowMs),
-    body(vm, opts, nowMs),
-    '</svg>',
-  ].join('');
-}
-
-function body(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
-  const strings = STRINGS[opts.lang];
-  if (vm.state !== 'ok' && vm.state !== 'stale') {
-    // loading 은 실패가 아니다 — 같은 판을 쓰되 accent 경고 배지를 달지 않는다.
-    return notice(
-      opts.surface,
-      strings.notice[vm.state],
-      vm.provider,
-      vm.state === 'loading' ? 'calm' : 'alert',
-    );
-  }
-  if (vm.slots.fiveHour === null && vm.slots.week === null) {
-    return notice(opts.surface, strings.noData, vm.provider, 'calm');
-  }
-  const [primary, secondary] = lead(vm, opts, nowMs);
-  const ctx: Ctx = { basis: opts.basis, provider: vm.provider, thresholds: opts.thresholds };
-  if (opts.chart === 'donut') {
-    return opts.surface === 'dial'
-      ? dialDonut(primary, secondary, ctx)
-      : keyDonut(primary, secondary, ctx);
-  }
-  return opts.surface === 'dial'
-    ? dialBar(primary, secondary, ctx)
-    : keyBar(primary, secondary, ctx);
-}
-
-/**
- * 두 슬롯을 주역·조역으로 배치한다. 5H 를 모르고 주간만 알면 **주간을 주역 자리로 올린다** —
- * Codex 는 항상 이 모양이라(2026-07-13 이후 주간만 반환) 큰 자리를 빈 구멍으로 남기면
- * 아는 값을 작은 자리에 밀어 넣고 화면의 절반을 낭비한다.
- */
-function lead(vm: UsageViewModel, opts: RenderOptions, nowMs: number): [Slot, Slot] {
-  const { basis } = opts;
-  const five = slotOf('5H', vm.slots.fiveHour, basis, nowMs, fiveHourNote(vm, opts.lang));
-  const week = slotOf('WK', vm.slots.week, basis, nowMs, null);
-  return five.v === null && week.v !== null ? [week, five] : [five, week];
-}
-
-function fiveHourNote(vm: UsageViewModel, lang: Lang): string | null {
+const fiveHourNote = (vm: UsageViewModel, lang: Lang): string | null => {
   return vm.provider === 'codex' && vm.slots.fiveHour === null ? STRINGS[lang].weeklyOnly : null;
-}
+};
 
-function slotOf(
+/**
+ * 표시값이 아니라 **위험**으로 판정한다 — 그래서 남은양 기준에서 임계가 뒤집힌다.
+ * 임계값 자체는 인스턴스 설정이고 정규화는 `resolveThresholds()` 가 이미 했다.
+ */
+type Risk = 'none' | 'ok' | 'warn' | 'crit';
+
+const risk = (v: number | null, c: Ctx): Risk => {
+  if (v === null) {
+    return 'none';
+  }
+  const { warnAt, critAt } = c.thresholds;
+  if (c.basis === 'used') {
+    return v >= critAt ? 'crit' : v >= warnAt ? 'warn' : 'ok';
+  }
+  return v <= 100 - critAt ? 'crit' : v <= 100 - warnAt ? 'warn' : 'ok';
+};
+
+const gaugeColor = (v: number | null, c: Ctx): string => {
+  const k = risk(v, c);
+  return k === 'crit' ? CRIT : k === 'warn' ? WARN : ACCENT[c.provider];
+};
+
+/** 조역 게이지. 위험해지면 주역과 같은 강도로 올라온다 — 흐린 건 안전할 때만이다. */
+const softColor = (v: number | null, c: Ctx): string => {
+  const k = risk(v, c);
+  return k === 'crit' ? CRIT : k === 'warn' ? WARN : ACCENT_DIM[c.provider];
+};
+
+const numColor = (v: number | null, c: Ctx): string => {
+  const k = risk(v, c);
+  return k === 'none' ? MUTED : k === 'crit' ? CRIT_TEXT : k === 'warn' ? WARN_TEXT : TEXT;
+};
+
+const subColor = (v: number | null, c: Ctx): string => {
+  const k = risk(v, c);
+  return k === 'none' ? MUTED : k === 'crit' ? CRIT_TEXT : k === 'warn' ? WARN_TEXT : SUB;
+};
+
+/**
+ * 라벨을 주어진 픽셀 폭에 맞춘다. 라벨은 서버가 준 스코프명(`WK Oauth apps` 등)일 수 있어
+ * 길이가 미지다 — 넘치면 옆 요소 위로 흘러 겹친다. 실제 글리프 폭을 잴 수 없으므로 폰트
+ * 크기당 평균 폭으로 보수적으로 어림한다.
+ *
+ * `spacing` 을 빼먹으면 안 된다 — 글자당 그만큼씩 늘어나 8글자에서 5px 가 새고, 그 5px 가
+ * 라벨을 옆 게이지 위로 밀어 넣는다(다이얼 바에서 실제로 그랬다).
+ */
+const clampLabel = (label: string, maxPx: number, size: number, spacing = 0): string => {
+  const maxChars = Math.floor(maxPx / (size * 0.62 + spacing));
+  return label.length <= maxChars ? label : `${label.slice(0, Math.max(1, maxChars - 1))}…`;
+};
+
+/* ── 값 변환 ──────────────────────────────────────────────────────── */
+
+/**
+ * 표시할 값. `null`(모름)에는 `remaining` 변환을 적용하지 않는다 — `100 - null` 이
+ * "100% 남음"이 되어, 진실이 "모름"인데 여유 만점이라고 자신 있게 표시하는 최악의 오표시가 된다.
+ */
+const value = (win: UsageWindow | null, basis: Basis): number | null => {
+  if (win === null || win.utilization === null) {
+    return null;
+  }
+  return basis === 'used' ? win.utilization : 100 - win.utilization;
+};
+
+const slotOf = (
   code: string,
   win: UsageWindow | null,
   basis: Basis,
   nowMs: number,
   note: string | null,
-): Slot {
+): Slot => {
   const resets = win?.resetsAtMs ?? null;
   return {
     code,
@@ -238,11 +237,155 @@ function slotOf(
     leftMs: resets === null ? null : resets - nowMs,
     note,
   };
-}
+};
+
+/**
+ * 두 슬롯을 주역·조역으로 배치한다. 5H 를 모르고 주간만 알면 **주간을 주역 자리로 올린다** —
+ * Codex 는 항상 이 모양이라(2026-07-13 이후 주간만 반환) 큰 자리를 빈 구멍으로 남기면
+ * 아는 값을 작은 자리에 밀어 넣고 화면의 절반을 낭비한다.
+ */
+const lead = (vm: UsageViewModel, opts: RenderOptions, nowMs: number): [Slot, Slot] => {
+  const { basis } = opts;
+  const five = slotOf('5H', vm.slots.fiveHour, basis, nowMs, fiveHourNote(vm, opts.lang));
+  const week = slotOf('WK', vm.slots.week, basis, nowMs, null);
+  return five.v === null && week.v !== null ? [week, five] : [five, week];
+};
+
+const pct = (v: number | null): string => {
+  return v === null ? '—' : `${Math.floor(v)}%`;
+};
+
+/**
+ * 초기화까지 남은 시간. 0 에서 자른다 — 폴링 사이에 창이 초기화되면 값이 음수가 되고
+ * floor/modulo 사슬이 `-1m` 을 내놓는다.
+ */
+const fmt = (ms: number | null): string => {
+  if (ms === null) {
+    return '—';
+  }
+  const left = Math.max(0, ms);
+  const d = Math.floor(left / DAY);
+  const h = Math.floor((left % DAY) / HOUR);
+  const m = Math.floor((left % HOUR) / MIN);
+  if (d > 0) {
+    return `${d}d ${h}h`;
+  }
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+/* ── 색 ───────────────────────────────────────────────────────────── */
+
+const age = (ms: number, lang: Lang): string => {
+  const { justNow, minutes: fmtMinutes, hours } = STRINGS[lang].age;
+  const minutes = Math.floor(ms / MIN);
+  if (minutes < 1) {
+    return justNow;
+  }
+  return minutes < 60 ? fmtMinutes(minutes) : hours(Math.floor(minutes / 60));
+};
+
+const round = (n: number): number => {
+  return Math.round(n * 10) / 10;
+};
+
+/**
+ * 10칸 세그먼트 미터. 칸 수는 거리에서 길이보다 빨리 세어지고, 몇 칸이 켜졌는지가 그대로
+ * "몇 십 퍼센트"로 읽힌다. 0 보다 큰 값은 최소 1칸을 켠다 — 3% 가 빈 미터로 보이면 안 된다.
+ */
+const segments = (
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  v: number | null,
+  accent: string,
+): string => {
+  const gap = Math.max(2, w * 0.024);
+  const bw = (w - gap * (SEG_COUNT - 1)) / SEG_COUNT;
+  const lit =
+    v === null || v <= 0 ? 0 : Math.max(1, Math.round((Math.min(v, 100) / 100) * SEG_COUNT));
+  return Array.from(
+    { length: SEG_COUNT },
+    (_, i) =>
+      `<rect x="${round(x + i * (bw + gap))}" y="${y}" width="${round(bw)}" height="${h}" rx="2" fill="${i < lit ? accent : TRACK}"/>`,
+  ).join('');
+};
+
+const polar = (cx: number, cy: number, r: number, deg: number): string => {
+  const rad = (deg * Math.PI) / 180;
+  return `${round(cx + r * Math.sin(rad))} ${round(cy - r * Math.cos(rad))}`;
+};
+
+/** 12시에서 시계방향으로 `frac` 만큼. 360°는 하나의 A 명령으로 표현할 수 없어 호출부에서 걸러낸다. */
+const arcPath = (cx: number, cy: number, r: number, frac: number): string => {
+  const start = polar(cx, cy, r, 0);
+  const end = polar(cx, cy, r, frac * 360);
+  const largeArc = frac > 0.5 ? 1 : 0;
+  return `M ${start} A ${r} ${r} 0 ${largeArc} 1 ${end}`;
+};
+
+/* ── 조각 ─────────────────────────────────────────────────────────── */
+
+/** 트랙 + 채움 링. 값이 `null`(모름)이면 트랙만 그린다 — 0% 로 그리면 안 된다. */
+const ring = (
+  cx: number,
+  cy: number,
+  r: number,
+  stroke: number,
+  v: number | null,
+  accent: string,
+): string => {
+  const track = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${TRACK}" stroke-width="${stroke}"/>`;
+  if (v === null || v <= 0) {
+    return track;
+  }
+  const frac = Math.min(v, 100) / 100;
+  const fill =
+    frac >= 0.999
+      ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${accent}" stroke-width="${stroke}"/>`
+      : `<path d="${arcPath(cx, cy, r, frac)}" fill="none" stroke="${accent}" stroke-width="${stroke}" stroke-linecap="round"/>`;
+  return track + fill;
+};
+
+const escapeXml = (s: string): string => {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+};
+
+/**
+ * `y` 는 베이스라인이다. `dominant-baseline` 을 쓰지 않는 이유는 래스터라이저별 지원이
+ * 고르지 않아 세로 정렬이 조용히 어긋날 수 있기 때문이다 — 좌표로 직접 잡는다.
+ */
+type TextOptions = {
+  size: number;
+  fill: string;
+  weight?: number;
+  anchor?: 'start' | 'middle' | 'end';
+  spacing?: number;
+};
+
+const text = (x: number, y: number, content: string, o: TextOptions): string => {
+  const attrs = [
+    `x="${x}"`,
+    `y="${y}"`,
+    `font-family="${FONT}"`,
+    `font-size="${o.size}"`,
+    `fill="${o.fill}"`,
+    o.weight === undefined ? '' : `font-weight="${o.weight}"`,
+    o.anchor === undefined ? '' : `text-anchor="${o.anchor}"`,
+    o.spacing === undefined ? '' : `letter-spacing="${o.spacing}"`,
+  ]
+    .filter((a) => a !== '')
+    .join(' ');
+  return `<text ${attrs}>${escapeXml(content)}</text>`;
+};
 
 /* ── 헤더 ─────────────────────────────────────────────────────────── */
 
-function header(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string {
+const header = (vm: UsageViewModel, opts: RenderOptions, nowMs: number): string => {
   const g = opts.surface === 'dial' ? { x: 10, y: 14, endX: 190 } : { x: 12, y: 15, endX: 132 };
   const name = vm.provider === 'claude' ? 'CLAUDE' : 'CODEX';
   const note =
@@ -253,7 +396,7 @@ function header(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string 
     text(g.x + 11, g.y, name, { size: 9, fill: MUTED, weight: 600, spacing: 1.1 }),
     note === '' ? '' : text(g.endX, g.y, note, { size: 8, fill: DIM, anchor: 'end' }),
   ].join('');
-}
+};
 
 /* ── 도넛 (디자인 1b) ─────────────────────────────────────────────── */
 
@@ -264,7 +407,7 @@ function header(vm: UsageViewModel, opts: RenderOptions, nowMs: number): string 
  * 조역은 링 아래 빈 줄을 통째로 쓴다 — 없앤 chip 자리다. chip 은 배경색으로 링을 가려
  * 성립했으므로 캔버스를 칠하지 않는 지금은 투명 배경 위의 검은 상자가 된다.
  */
-function keyDonut(p: Slot, s: Slot, c: Ctx): string {
+const keyDonut = (p: Slot, s: Slot, c: Ctx): string => {
   const big = pct(p.v);
   return [
     ring(72, 70, 50, 5, p.v, gaugeColor(p.v, c)),
@@ -292,22 +435,9 @@ function keyDonut(p: Slot, s: Slot, c: Ctx): string {
       : text(40, 139, pct(s.v), { size: 15, fill: subColor(s.v, c), weight: 700 }) +
         text(130, 138, fmt(s.leftMs), { size: 12, fill: DIM, anchor: 'end' }),
   ].join('');
-}
+};
 
-/**
- * 폭이 남는 다이얼에서는 두 창을 같은 크기 셀로 나란히 둔다 — 주간을 작은 링에 몰아넣던
- * 위계가 "주간이 안 보인다"의 원인이었다.
- *
- * 셀 크기가 같으므로 승격은 **자리 이동이 아니라 강조의 이동**이다(디자인 원안은 강조까지
- * 5H 에 고정한다 — 그러면 Codex 는 유일하게 아는 값이 흐린 색으로 그려진다). 자리를 고정하는
- * 이유는 5H 가 폴링 사이에 사라지면 두 셀이 맞바뀌어 눈이 매번 다시 찾아야 하기 때문이다.
- */
-function dialDonut(p: Slot, s: Slot, c: Ctx): string {
-  const [left, right] = p.code === '5H' ? [p, s] : [s, p];
-  return donutCell(52, left, left === p, c) + donutCell(148, right, right === p, c);
-}
-
-function donutCell(cx: number, w: Slot, primary: boolean, c: Ctx): string {
+const donutCell = (cx: number, w: Slot, primary: boolean, c: Ctx): string => {
   const big = pct(w.v);
   return [
     ring(cx, 48, 26, 5, w.v, primary ? gaugeColor(w.v, c) : softColor(w.v, c)),
@@ -329,7 +459,20 @@ function donutCell(cx: number, w: Slot, primary: boolean, c: Ctx): string {
       anchor: 'middle',
     }),
   ].join('');
-}
+};
+
+/**
+ * 폭이 남는 다이얼에서는 두 창을 같은 크기 셀로 나란히 둔다 — 주간을 작은 링에 몰아넣던
+ * 위계가 "주간이 안 보인다"의 원인이었다.
+ *
+ * 셀 크기가 같으므로 승격은 **자리 이동이 아니라 강조의 이동**이다(디자인 원안은 강조까지
+ * 5H 에 고정한다 — 그러면 Codex 는 유일하게 아는 값이 흐린 색으로 그려진다). 자리를 고정하는
+ * 이유는 5H 가 폴링 사이에 사라지면 두 셀이 맞바뀌어 눈이 매번 다시 찾아야 하기 때문이다.
+ */
+const dialDonut = (p: Slot, s: Slot, c: Ctx): string => {
+  const [left, right] = p.code === '5H' ? [p, s] : [s, p];
+  return donutCell(52, left, left === p, c) + donutCell(148, right, right === p, c);
+};
 
 /* ── 세그먼트 미터 (디자인 1d) ────────────────────────────────────── */
 
@@ -337,7 +480,7 @@ function donutCell(cx: number, w: Slot, primary: boolean, c: Ctx): string {
  * 주역 32px / 조역 19px 로 위계를 확실히 둔다. 연속 바를 10칸으로 끊은 이유는
  * {@link segments} 에 있다.
  */
-function keyBar(p: Slot, s: Slot, c: Ctx): string {
+const keyBar = (p: Slot, s: Slot, c: Ctx): string => {
   return [
     // 13px 로 커진 남은 시간이 x=74 까지 밀려온다 — 라벨 예산 60px 가 거기서 끝난다.
     text(14, 36, clampLabel(p.label, 60, 10, 0.6), {
@@ -363,9 +506,9 @@ function keyBar(p: Slot, s: Slot, c: Ctx): string {
     // 미터 시작점은 `100%` 폭(19px 에서 ≈49px)이 결정한다 — 64 에 두면 네 자리에서 숫자에 붙는다.
     segments(68, 128, 62, 8, s.v, softColor(s.v, c)),
   ].join('');
-}
+};
 
-function dialBar(p: Slot, s: Slot, c: Ctx): string {
+const dialBar = (p: Slot, s: Slot, c: Ctx): string => {
   const note = s.v === null ? s.note : null;
   return [
     text(10, 39, clampLabel(p.label, 48, 10, 0.6), {
@@ -388,11 +531,16 @@ function dialBar(p: Slot, s: Slot, c: Ctx): string {
     segments(62, 72, 66, 10, s.v, softColor(s.v, c)),
     text(190, 87, pct(s.v), { size: 17, fill: subColor(s.v, c), weight: 700, anchor: 'end' }),
   ].join('');
-}
+};
 
 /* ── 게이지 대신 뜨는 화면 ────────────────────────────────────────── */
 
-function notice(surface: Surface, n: Notice, provider: Provider, tone: 'alert' | 'calm'): string {
+const notice = (
+  surface: Surface,
+  n: Notice,
+  provider: Provider,
+  tone: 'alert' | 'calm',
+): string => {
   const color = tone === 'alert' ? ACCENT[provider] : MUTED;
   const hint = n.hint.replace('{cli}', CLI[provider]);
   const g =
@@ -412,200 +560,57 @@ function notice(surface: Surface, n: Notice, provider: Provider, tone: 'alert' |
     text(g.cx, g.titleY, n.title, { size: 14, fill: TEXT, weight: 700, anchor: 'middle' }),
     text(g.cx, g.hintY, hint, { size: g.hintSize, fill: DIM, anchor: 'middle' }),
   ].join('');
-}
+};
 
-/* ── 색 ───────────────────────────────────────────────────────────── */
-
-type Risk = 'none' | 'ok' | 'warn' | 'crit';
-
-/**
- * 표시값이 아니라 **위험**으로 판정한다 — 그래서 남은양 기준에서 임계가 뒤집힌다.
- * 임계값 자체는 인스턴스 설정이고 정규화는 `resolveThresholds()` 가 이미 했다.
- */
-function risk(v: number | null, c: Ctx): Risk {
-  if (v === null) {
-    return 'none';
+const body = (vm: UsageViewModel, opts: RenderOptions, nowMs: number): string => {
+  const strings = STRINGS[opts.lang];
+  if (vm.state !== 'ok' && vm.state !== 'stale') {
+    // loading 은 실패가 아니다 — 같은 판을 쓰되 accent 경고 배지를 달지 않는다.
+    return notice(
+      opts.surface,
+      strings.notice[vm.state],
+      vm.provider,
+      vm.state === 'loading' ? 'calm' : 'alert',
+    );
   }
-  const { warnAt, critAt } = c.thresholds;
-  if (c.basis === 'used') {
-    return v >= critAt ? 'crit' : v >= warnAt ? 'warn' : 'ok';
+  if (vm.slots.fiveHour === null && vm.slots.week === null) {
+    return notice(opts.surface, strings.noData, vm.provider, 'calm');
   }
-  return v <= 100 - critAt ? 'crit' : v <= 100 - warnAt ? 'warn' : 'ok';
-}
-
-function gaugeColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c);
-  return k === 'crit' ? CRIT : k === 'warn' ? WARN : ACCENT[c.provider];
-}
-
-/** 조역 게이지. 위험해지면 주역과 같은 강도로 올라온다 — 흐린 건 안전할 때만이다. */
-function softColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c);
-  return k === 'crit' ? CRIT : k === 'warn' ? WARN : ACCENT_DIM[c.provider];
-}
-
-function numColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c);
-  return k === 'none' ? MUTED : k === 'crit' ? CRIT_TEXT : k === 'warn' ? WARN_TEXT : TEXT;
-}
-
-function subColor(v: number | null, c: Ctx): string {
-  const k = risk(v, c);
-  return k === 'none' ? MUTED : k === 'crit' ? CRIT_TEXT : k === 'warn' ? WARN_TEXT : SUB;
-}
-
-/* ── 조각 ─────────────────────────────────────────────────────────── */
-
-/** 트랙 + 채움 링. 값이 `null`(모름)이면 트랙만 그린다 — 0% 로 그리면 안 된다. */
-function ring(
-  cx: number,
-  cy: number,
-  r: number,
-  stroke: number,
-  v: number | null,
-  accent: string,
-): string {
-  const track = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${TRACK}" stroke-width="${stroke}"/>`;
-  if (v === null || v <= 0) {
-    return track;
+  const [primary, secondary] = lead(vm, opts, nowMs);
+  const ctx: Ctx = { basis: opts.basis, provider: vm.provider, thresholds: opts.thresholds };
+  if (opts.chart === 'donut') {
+    return opts.surface === 'dial'
+      ? dialDonut(primary, secondary, ctx)
+      : keyDonut(primary, secondary, ctx);
   }
-  const frac = Math.min(v, 100) / 100;
-  const fill =
-    frac >= 0.999
-      ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${accent}" stroke-width="${stroke}"/>`
-      : `<path d="${arcPath(cx, cy, r, frac)}" fill="none" stroke="${accent}" stroke-width="${stroke}" stroke-linecap="round"/>`;
-  return track + fill;
-}
-
-/**
- * 10칸 세그먼트 미터. 칸 수는 거리에서 길이보다 빨리 세어지고, 몇 칸이 켜졌는지가 그대로
- * "몇 십 퍼센트"로 읽힌다. 0 보다 큰 값은 최소 1칸을 켠다 — 3% 가 빈 미터로 보이면 안 된다.
- */
-function segments(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  v: number | null,
-  accent: string,
-): string {
-  const gap = Math.max(2, w * 0.024);
-  const bw = (w - gap * (SEG_COUNT - 1)) / SEG_COUNT;
-  const lit =
-    v === null || v <= 0 ? 0 : Math.max(1, Math.round((Math.min(v, 100) / 100) * SEG_COUNT));
-  return Array.from(
-    { length: SEG_COUNT },
-    (_, i) =>
-      `<rect x="${round(x + i * (bw + gap))}" y="${y}" width="${round(bw)}" height="${h}" rx="2" fill="${i < lit ? accent : TRACK}"/>`,
-  ).join('');
-}
-
-/** 12시에서 시계방향으로 `frac` 만큼. 360°는 하나의 A 명령으로 표현할 수 없어 호출부에서 걸러낸다. */
-function arcPath(cx: number, cy: number, r: number, frac: number): string {
-  const start = polar(cx, cy, r, 0);
-  const end = polar(cx, cy, r, frac * 360);
-  const largeArc = frac > 0.5 ? 1 : 0;
-  return `M ${start} A ${r} ${r} 0 ${largeArc} 1 ${end}`;
-}
-
-function polar(cx: number, cy: number, r: number, deg: number): string {
-  const rad = (deg * Math.PI) / 180;
-  return `${round(cx + r * Math.sin(rad))} ${round(cy - r * Math.cos(rad))}`;
-}
-
-type TextOptions = {
-  size: number;
-  fill: string;
-  weight?: number;
-  anchor?: 'start' | 'middle' | 'end';
-  spacing?: number;
+  return opts.surface === 'dial'
+    ? dialBar(primary, secondary, ctx)
+    : keyBar(primary, secondary, ctx);
 };
 
 /**
- * `y` 는 베이스라인이다. `dominant-baseline` 을 쓰지 않는 이유는 래스터라이저별 지원이
- * 고르지 않아 세로 정렬이 조용히 어긋날 수 있기 때문이다 — 좌표로 직접 잡는다.
- */
-function text(x: number, y: number, content: string, o: TextOptions): string {
-  const attrs = [
-    `x="${x}"`,
-    `y="${y}"`,
-    `font-family="${FONT}"`,
-    `font-size="${o.size}"`,
-    `fill="${o.fill}"`,
-    o.weight === undefined ? '' : `font-weight="${o.weight}"`,
-    o.anchor === undefined ? '' : `text-anchor="${o.anchor}"`,
-    o.spacing === undefined ? '' : `letter-spacing="${o.spacing}"`,
-  ]
-    .filter((a) => a !== '')
-    .join(' ');
-  return `<text ${attrs}>${escapeXml(content)}</text>`;
-}
-
-/**
- * 라벨을 주어진 픽셀 폭에 맞춘다. 라벨은 서버가 준 스코프명(`WK Oauth apps` 등)일 수 있어
- * 길이가 미지다 — 넘치면 옆 요소 위로 흘러 겹친다. 실제 글리프 폭을 잴 수 없으므로 폰트
- * 크기당 평균 폭으로 보수적으로 어림한다.
+ * 뷰모델 하나를 SVG 문자열로 그린다. 순수 함수다 — 픽스처만으로 전 상태를 검증할 수 있다.
+ * `nowMs` 를 인자로 받는 이유가 그것이다: stale 나이와 남은 시간이 `Date.now()` 를 직접
+ * 부르면 같은 입력이 호출 시점마다 다른 SVG 를 내 스냅샷도 프리뷰도 결정적이지 않게 된다.
  *
- * `spacing` 을 빼먹으면 안 된다 — 글자당 그만큼씩 늘어나 8글자에서 5px 가 새고, 그 5px 가
- * 라벨을 옆 게이지 위로 밀어 넣는다(다이얼 바에서 실제로 그랬다).
+ * 캔버스 전체를 매번 다시 그린다. 그래서 슬롯이 비어도, 차트 종류가 바뀌어도 레이아웃 item 을
+ * 조건부로 만들 필요가 없다(layout item 의 type/key/rect 는 런타임 변경 불가).
+ *
+ * 도넛 호는 `stroke-dasharray` 가 아니라 arc path(`A` 명령)로 그린다 — dasharray 보다
+ * 훨씬 기본적인 기능이라 래스터라이저 호환 리스크가 낮다.
+ *
+ * ⚠ **캔버스를 칠하지 않는다** — 스트림덱 프로필 배경이 그대로 비친다. 대신 어두운 배경이
+ * 코드 밖의 **가정**이 됐다({@link ACCENT_DIM} 참고).
+ *
+ * ⚠ 남은 시간은 렌더 시점 기준으로 굳는다. 다시 그리는 계기는 폴링뿐이므로 표시된
+ * 카운트다운은 최대 폴링 간격만큼 낡을 수 있다(SPEC §19).
  */
-function clampLabel(label: string, maxPx: number, size: number, spacing = 0): string {
-  const maxChars = Math.floor(maxPx / (size * 0.62 + spacing));
-  return label.length <= maxChars ? label : `${label.slice(0, Math.max(1, maxChars - 1))}…`;
-}
-
-/* ── 값 변환 ──────────────────────────────────────────────────────── */
-
-/**
- * 표시할 값. `null`(모름)에는 `remaining` 변환을 적용하지 않는다 — `100 - null` 이
- * "100% 남음"이 되어, 진실이 "모름"인데 여유 만점이라고 자신 있게 표시하는 최악의 오표시가 된다.
- */
-function value(win: UsageWindow | null, basis: Basis): number | null {
-  if (win === null || win.utilization === null) {
-    return null;
-  }
-  return basis === 'used' ? win.utilization : 100 - win.utilization;
-}
-
-function pct(v: number | null): string {
-  return v === null ? '—' : `${Math.floor(v)}%`;
-}
-
-/**
- * 초기화까지 남은 시간. 0 에서 자른다 — 폴링 사이에 창이 초기화되면 값이 음수가 되고
- * floor/modulo 사슬이 `-1m` 을 내놓는다.
- */
-function fmt(ms: number | null): string {
-  if (ms === null) {
-    return '—';
-  }
-  const left = Math.max(0, ms);
-  const d = Math.floor(left / DAY);
-  const h = Math.floor((left % DAY) / HOUR);
-  const m = Math.floor((left % HOUR) / MIN);
-  if (d > 0) {
-    return `${d}d ${h}h`;
-  }
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-function age(ms: number, lang: Lang): string {
-  const { justNow, minutes: fmtMinutes, hours } = STRINGS[lang].age;
-  const minutes = Math.floor(ms / MIN);
-  if (minutes < 1) {
-    return justNow;
-  }
-  return minutes < 60 ? fmtMinutes(minutes) : hours(Math.floor(minutes / 60));
-}
-
-function round(n: number): number {
-  return Math.round(n * 10) / 10;
-}
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+export const renderGauge = (vm: UsageViewModel, opts: RenderOptions, nowMs: number): string => {
+  const { w, h } = CANVAS[opts.surface];
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+    header(vm, opts, nowMs),
+    body(vm, opts, nowMs),
+    '</svg>',
+  ].join('');
+};

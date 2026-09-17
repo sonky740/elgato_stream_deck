@@ -51,37 +51,28 @@ export class CodexSource implements LimitsSource {
   }
 }
 
-/**
- * 응답을 슬롯 2개로 정규화한다.
- *
- * **슬롯 위치로 라벨을 붙이지 않는다.** `primary_window` 는 2026-03~07 에 5시간 창, 07-13
- * 부터 주간 창을 담았다 — 같은 계정에서 뒤집혔다. 라벨과 슬롯 배정은 `limit_window_seconds`
- * 에서만 파생한다.
- *
- * ⚠ 응답 본문에는 `email`·`user_id`·`account_id` 가 평문으로 들어 있다. 여기서 필요한 필드만
- * 꺼내고 본문을 그대로 들고 나가지 않는 것이 PII 차단 지점이다 — 뷰모델에는 숫자만 남는다.
- */
-export function parseUsage(body: unknown): FetchResult {
-  const rateLimit = asRecord(asRecord(body)?.['rate_limit']);
-  if (rateLimit === null) {
-    return { state: 'shape-changed', slots: EMPTY_SLOTS };
+/** 창 길이에서 라벨을 만든다. 버킷 경계 밖의 길이도 사람이 읽을 수 있게 포맷한다. */
+const labelOf = (durationSec: number): string => {
+  const hours = durationSec / 3600;
+  if (hours <= 24) {
+    return `${Math.round(hours)}H`;
   }
+  const days = Math.round(hours / 24);
+  return days === 7 ? 'WK' : `${days}D`;
+};
 
-  const windows: UsageWindow[] = [];
-  for (const key of ['primary_window', 'secondary_window']) {
-    const win = toWindow(rateLimit[key]);
-    if (win !== null) {
-      windows.push(win);
-    }
-  }
-  // 두 창이 다 null 이면 rate_limit 은 왔는데 창 정보가 없는 것이다. 0% 가 아니라 미지다.
-  if (windows.length === 0) {
-    return { state: 'unentitled', slots: EMPTY_SLOTS };
-  }
-  return { state: 'ok', slots: assignSlots(windows) };
-}
+const epochSecToMs = (value: unknown): number | null => {
+  const sec = Number(value);
+  return Number.isFinite(sec) && sec > 0 ? sec * 1000 : null;
+};
 
-function toWindow(raw: unknown): UsageWindow | null {
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+};
+
+const toWindow = (raw: unknown): UsageWindow | null => {
   const rec = asRecord(raw);
   if (rec === null) {
     return null;
@@ -99,25 +90,34 @@ function toWindow(raw: unknown): UsageWindow | null {
     // 상대값이라 쓰지 않는다.
     resetsAtMs: epochSecToMs(rec['reset_at']),
   };
-}
+};
 
-/** 창 길이에서 라벨을 만든다. 버킷 경계 밖의 길이도 사람이 읽을 수 있게 포맷한다. */
-function labelOf(durationSec: number): string {
-  const hours = durationSec / 3600;
-  if (hours <= 24) {
-    return `${Math.round(hours)}H`;
+/**
+ * 응답을 슬롯 2개로 정규화한다.
+ *
+ * **슬롯 위치로 라벨을 붙이지 않는다.** `primary_window` 는 2026-03~07 에 5시간 창, 07-13
+ * 부터 주간 창을 담았다 — 같은 계정에서 뒤집혔다. 라벨과 슬롯 배정은 `limit_window_seconds`
+ * 에서만 파생한다.
+ *
+ * ⚠ 응답 본문에는 `email`·`user_id`·`account_id` 가 평문으로 들어 있다. 여기서 필요한 필드만
+ * 꺼내고 본문을 그대로 들고 나가지 않는 것이 PII 차단 지점이다 — 뷰모델에는 숫자만 남는다.
+ */
+export const parseUsage = (body: unknown): FetchResult => {
+  const rateLimit = asRecord(asRecord(body)?.['rate_limit']);
+  if (rateLimit === null) {
+    return { state: 'shape-changed', slots: EMPTY_SLOTS };
   }
-  const days = Math.round(hours / 24);
-  return days === 7 ? 'WK' : `${days}D`;
-}
 
-function epochSecToMs(value: unknown): number | null {
-  const sec = Number(value);
-  return Number.isFinite(sec) && sec > 0 ? sec * 1000 : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
+  const windows: UsageWindow[] = [];
+  for (const key of ['primary_window', 'secondary_window']) {
+    const win = toWindow(rateLimit[key]);
+    if (win !== null) {
+      windows.push(win);
+    }
+  }
+  // 두 창이 다 null 이면 rate_limit 은 왔는데 창 정보가 없는 것이다. 0% 가 아니라 미지다.
+  if (windows.length === 0) {
+    return { state: 'unentitled', slots: EMPTY_SLOTS };
+  }
+  return { state: 'ok', slots: assignSlots(windows) };
+};

@@ -5,9 +5,9 @@
  */
 export type Lang = 'ko' | 'en';
 
-export function resolveLang(appLanguage: string): Lang {
+export const resolveLang = (appLanguage: string): Lang => {
   return appLanguage === 'ko' ? 'ko' : 'en';
-}
+};
 
 /**
  * 현재 언어. 렌더 경로에서 `streamDeck.i18n.language` 를 직접 읽지 않는 이유는 그 접근이
@@ -17,10 +17,10 @@ export function resolveLang(appLanguage: string): Lang {
  */
 let lang: Lang = 'en';
 
-export function setLang(next: Lang): void {
+export const setLang = (next: Lang): void => {
   lang = next;
-}
+};
 
-export function currentLang(): Lang {
+export const currentLang = (): Lang => {
   return lang;
-}
+};

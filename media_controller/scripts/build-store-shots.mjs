@@ -80,7 +80,7 @@ const SHOTS = [
 ];
 
 /** 기기 판. 다이얼 SVG 는 배경이 없어 판을 깔고, 키 PNG 는 자기 판을 이미 갖고 있어 그대로 둔다. */
-function device(item) {
+const device = (item) => {
   const caption =
     item.caption === undefined ? '' : `<figcaption class="caption">${item.caption}</figcaption>`;
   const screen =
@@ -91,9 +91,9 @@ function device(item) {
       : `<img class="key" width="${item.w * item.scale}" height="${item.h * item.scale}"` +
         ` src="data:image/png;base64,${readFileSync(item.src).toString('base64')}">`;
   return `<figure class="device">${screen}${caption}</figure>`;
-}
+};
 
-function frame(shot) {
+const frame = (shot) => {
   const stage = `<div class="stage">${shot.items.map(device).join('')}</div>`;
   const copy = `<hgroup class="copy"><h1>${shot.headline}</h1><p>${shot.sub}</p></hgroup>`;
   return `<!doctype html><meta charset="utf-8"><style>
@@ -119,7 +119,7 @@ function frame(shot) {
     .key{display:block;border-radius:26px;box-shadow:0 34px 90px rgba(0,0,0,.55)}
     .caption{font-size:26px;color:${MUTED};letter-spacing:.3px}
   </style><div class="page ${shot.kind}">${copy}${stage}</div>`;
-}
+};
 
 /**
  * 앱 아이콘은 커밋된 512 자산을 288 로 줄인 것이다 — **워드마크가 없다.** c_ai_usage 는 마크를 줄여
@@ -127,14 +127,14 @@ function frame(shot) {
  * 없는 디자인 PNG 이고 아크·틱마크가 캔버스를 꽉 채워 이름 띠 자리를 만들려면 마크를 다시 그려야 한다.
  * 재생 글리프는 그 자체로 읽히므로 v1 은 로고만 쓴다(가이드라인은 "제품명 **또는** 로고"를 요구한다).
  */
-function appIconHtml() {
+const appIconHtml = () => {
   const png = readFileSync(path.join(PLUGIN, 'imgs', 'plugin', 'marketplace@2x.png'));
   return `<!doctype html><meta charset="utf-8"><style>
     html,body{margin:0;padding:0;background:transparent}img{display:block}
   </style><img width="${APP_ICON}" height="${APP_ICON}" src="data:image/png;base64,${png.toString('base64')}">`;
-}
+};
 
-function shoot({ name, html, w, h, transparent }) {
+const shoot = ({ name, html, w, h, transparent }) => {
   const file = path.join(TMP, `${name}.html`);
   writeFileSync(file, html);
   const dest = path.join(OUT, `${name}.png`);
@@ -153,7 +153,7 @@ function shoot({ name, html, w, h, transparent }) {
     { stdio: 'ignore' },
   );
   console.log(`${name}.png  ${w}×${h}`);
-}
+};
 
 rmSync(TMP, { recursive: true, force: true });
 rmSync(OUT, { recursive: true, force: true });

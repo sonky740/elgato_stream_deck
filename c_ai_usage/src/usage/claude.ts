@@ -53,6 +53,41 @@ export class ClaudeSource implements LimitsSource {
   }
 }
 
+/** 창 길이를 키 이름에서 파생한다 — Claude 응답에는 길이 필드가 없다(Codex 는 있다). */
+const durationOf = (key: string): number => {
+  if (key === 'five_hour') {
+    return FIVE_HOUR_SEC;
+  }
+  return key.startsWith('seven_day') ? WEEK_SEC : 0;
+};
+
+const labelOf = (key: string): string => {
+  if (key === 'five_hour') {
+    return '5H';
+  }
+  if (key === 'seven_day') {
+    return 'WK';
+  }
+  // 공백 대신 가운뎃점을 쓴다 — 다이얼 라벨 열이 좁아 한 글자가 아깝고, 한 토큰으로 읽힌다.
+  const scope = key.slice('seven_day_'.length).replace(/_/g, ' ');
+  return `WK·${scope.charAt(0).toUpperCase()}${scope.slice(1)}`;
+};
+
+/** ISO 8601 문자열 → epoch ms. Codex 의 epoch 초와 혼동하면 1970년이 나온다. */
+const parseIsoMs = (value: unknown): number | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : ms;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+};
+
 /**
  * 응답을 슬롯 2개로 정규화한다.
  *
@@ -62,7 +97,7 @@ export class ClaudeSource implements LimitsSource {
  * `limits[]` 배열은 v1 에서 쓰지 않는다: 같은 수치를 int 로 담아(`percent` 12 vs `utilization` 12.0)
  * 소수점 해상도를 잃고, scoped 항목의 `resets_at` 이 null 로 오는데 창 객체는 값을 갖는다.
  */
-export function parseUsage(body: unknown): FetchResult {
+export const parseUsage = (body: unknown): FetchResult => {
   const root = asRecord(body);
   if (root === null) {
     return { state: 'shape-changed', slots: EMPTY_SLOTS };
@@ -93,39 +128,4 @@ export function parseUsage(body: unknown): FetchResult {
     return { state: 'unentitled', slots: EMPTY_SLOTS };
   }
   return { state: 'ok', slots: assignSlots(windows) };
-}
-
-/** 창 길이를 키 이름에서 파생한다 — Claude 응답에는 길이 필드가 없다(Codex 는 있다). */
-function durationOf(key: string): number {
-  if (key === 'five_hour') {
-    return FIVE_HOUR_SEC;
-  }
-  return key.startsWith('seven_day') ? WEEK_SEC : 0;
-}
-
-function labelOf(key: string): string {
-  if (key === 'five_hour') {
-    return '5H';
-  }
-  if (key === 'seven_day') {
-    return 'WK';
-  }
-  // 공백 대신 가운뎃점을 쓴다 — 다이얼 라벨 열이 좁아 한 글자가 아깝고, 한 토큰으로 읽힌다.
-  const scope = key.slice('seven_day_'.length).replace(/_/g, ' ');
-  return `WK·${scope.charAt(0).toUpperCase()}${scope.slice(1)}`;
-}
-
-/** ISO 8601 문자열 → epoch ms. Codex 의 epoch 초와 혼동하면 1970년이 나온다. */
-function parseIsoMs(value: unknown): number | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const ms = Date.parse(value);
-  return Number.isNaN(ms) ? null : ms;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
+};

@@ -56,6 +56,16 @@ export type UsageService = {
   refresh(): void;
 };
 
+/** 로그용 한 줄 요약. 창이 비면 `—` 로 표시해 0% 와 구분한다. */
+const summarize = (vm: UsageViewModel): string => {
+  if (vm.state !== 'ok' && vm.state !== 'stale') {
+    return '';
+  }
+  const cell = (w: UsageViewModel['slots']['week']): string =>
+    w === null || w.utilization === null ? '—' : `${Math.floor(w.utilization)}%`;
+  return ` (5H ${cell(vm.slots.fiveHour)} / WK ${cell(vm.slots.week)})`;
+};
+
 /**
  * 프로바이더당 하나. 네트워크 타이머와 last-good 캐시를 **여기서만** 소유하고,
  * 액션 인스턴스는 구독만 한다.
@@ -68,7 +78,10 @@ export type UsageService = {
  * 1. 동시 요청 1개  2. 실패 시 지수 백오프(간격이 절대 짧아지지 않는다)
  * 3. 연속 실패 → 서킷 오픈  4. 인스턴스 수가 요청률에 영향 없음
  */
-export function createUsageService(source: LimitsSource, opts: UsageServiceOptions): UsageService {
+export const createUsageService = (
+  source: LimitsSource,
+  opts: UsageServiceOptions,
+): UsageService => {
   let intervalMs = opts.intervalMs;
   const listeners = new Set<(vm: UsageViewModel) => void>();
   let timer: NodeJS.Timeout | undefined;
@@ -86,7 +99,7 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
     fetchedAtMs: null,
   };
 
-  function emit(next: UsageViewModel): void {
+  const emit = (next: UsageViewModel): void => {
     // 상태가 바뀔 때만 기록한다 — 매 폴링마다 찍으면 성공 경로가 로그를 가득 채운다.
     // 수치는 PII 가 아니라 남겨도 되지만, 응답 본문은 어떤 경우에도 기록하지 않는다(§4.2).
     if (next.state !== vm.state) {
@@ -98,9 +111,9 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
     for (const listener of listeners) {
       listener(vm);
     }
-  }
+  };
 
-  function schedule(delayMs: number): void {
+  const schedule = (delayMs: number): void => {
     if (timer !== undefined) {
       clearTimeout(timer);
     }
@@ -110,17 +123,17 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
       return;
     }
     timer = setTimeout(() => void poll(), delayMs);
-  }
+  };
 
   /** 실패 시 대기 시간. 항상 `intervalMs` 이상이다 — 실패가 요청 빈도를 올리는 경로를 없앤다. */
-  function backoffMs(): number {
+  const backoffMs = (): number => {
     if (failures >= CIRCUIT_THRESHOLD) {
       return Math.max(CIRCUIT_COOLDOWN_MS, intervalMs);
     }
     return Math.min(intervalMs * 2 ** failures, MAX_BACKOFF_MS);
-  }
+  };
 
-  async function poll(): Promise<void> {
+  const poll = async (): Promise<void> => {
     if (inFlight) {
       return;
     }
@@ -182,7 +195,7 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
     } finally {
       inFlight = false;
     }
-  }
+  };
 
   return {
     subscribe(listener) {
@@ -230,14 +243,4 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
       schedule(0);
     },
   };
-}
-
-/** 로그용 한 줄 요약. 창이 비면 `—` 로 표시해 0% 와 구분한다. */
-function summarize(vm: UsageViewModel): string {
-  if (vm.state !== 'ok' && vm.state !== 'stale') {
-    return '';
-  }
-  const cell = (w: UsageViewModel['slots']['week']): string =>
-    w === null || w.utilization === null ? '—' : `${Math.floor(w.utilization)}%`;
-  return ` (5H ${cell(vm.slots.fiveHour)} / WK ${cell(vm.slots.week)})`;
-}
+};

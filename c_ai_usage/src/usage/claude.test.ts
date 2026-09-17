@@ -7,9 +7,9 @@ import { assignSlots, type UsageWindow } from './types';
 
 const FIXTURES = path.join(import.meta.dirname, '..', '..', 'fixtures');
 
-function fixture(name: string): unknown {
+const fixture = (name: string): unknown => {
   return JSON.parse(readFileSync(path.join(FIXTURES, name), 'utf8'));
-}
+};
 
 describe('parseUsage', () => {
   it('실측 응답에서 5H · WK 슬롯을 뽑는다', () => {
