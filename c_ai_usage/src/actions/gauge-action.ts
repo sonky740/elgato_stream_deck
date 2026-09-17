@@ -54,7 +54,7 @@ type PiMessage = { event?: string };
  * 프로바이더 차이는 전부 주입된 {@link UsageService} 뒤에 있다.
  *
  * 폴링 타이머를 갖지 않는다. 공유 서비스를 구독하고 값이 오면 그릴 뿐이다 — 인스턴스마다
- * 타이머를 두면 다이얼 2개를 올리는 순간 레이트리밋된 요청이 2배가 된다(§5).
+ * 타이머를 두면 다이얼 2개를 올리는 순간 레이트리밋된 요청이 2배가 된다(SPEC "액션 인스턴스 수가 요청률에 영향을 주지 않는다").
  */
 export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
   readonly #service: UsageService;

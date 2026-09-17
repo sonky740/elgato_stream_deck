@@ -144,7 +144,7 @@ describe('createUsageService', () => {
     expect(seen.at(-1)?.state).toBe('network');
   });
 
-  it('실패는 폴링 간격을 절대 짧게 만들지 않는다 — §0 사고의 핵심', async () => {
+  it('실패는 폴링 간격을 절대 짧게 만들지 않는다 — 과거 폭주 사고의 핵심', async () => {
     const source = fakeSource([{ state: 'network', slots: { fiveHour: null, week: null } }]);
     collect(source);
     await firstFetch();
@@ -274,7 +274,7 @@ describe('setIntervalMs', () => {
     off();
   });
 
-  it('실패 중에는 대기를 다시 잡지 않는다 — 백오프가 짧아지면 §0 사고 경로가 다시 열린다', async () => {
+  it('실패 중에는 대기를 다시 잡지 않는다 — 백오프가 짧아지면 폭주 경로가 다시 열린다', async () => {
     const source = fakeSource([{ state: 'network', slots: { fiveHour: null, week: null } }]);
     const service = createUsageService(source, { intervalMs: INTERVAL, staleLimitMs: STALE_LIMIT });
     const off = service.subscribe(() => {});

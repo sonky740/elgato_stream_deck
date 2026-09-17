@@ -2,7 +2,7 @@ export type Provider = 'claude' | 'codex';
 
 /**
  * 사용량 창 하나. 두 프로바이더의 서로 다른 단위 관용구를 여기로 정규화한다
- * (Claude: float 0..100 + ISO 문자열 / Codex: int 0..100 + epoch 초 — ai-limits-plan.md §4).
+ * (Claude: float 0..100 + ISO 문자열 / Codex: int 0..100 + epoch 초).
  */
 export type UsageWindow = {
   /** 표시 라벨. 응답의 슬롯 위치가 아니라 창 길이에서 파생한다 — 위치로 붙이면 조용히 틀린다. */
@@ -14,7 +14,7 @@ export type UsageWindow = {
 };
 
 /**
- * 소스가 지금 어떤 상태인지. 값마다 서로 구분되는 렌더를 갖는다(ai-limits-plan.md §8) —
+ * 소스가 지금 어떤 상태인지. 값마다 서로 구분되는 렌더를 갖는다 —
  * 구분이 없으면 사용자가 "여유 있음"과 "플러그인 고장"을 분간할 수 없다.
  */
 export type SourceState =
@@ -35,7 +35,7 @@ export type SourceState =
   | 'network'
   | 'shape-changed';
 
-/** 슬롯 2개 고정. 채울 데이터가 없으면 `null` → 공란 렌더(§2 결정). */
+/** 슬롯 2개 고정. 채울 데이터가 없으면 `null` → 공란 렌더. */
 export type UsageSlots = {
   fiveHour: UsageWindow | null;
   week: UsageWindow | null;

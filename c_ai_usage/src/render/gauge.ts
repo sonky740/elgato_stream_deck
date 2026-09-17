@@ -76,7 +76,7 @@ type Strings = {
    * 게이지 대신 띄우는 화면의 문구. 상태마다 제목이 다르고 한 줄로 다음 할 일을 말한다.
    *
    * 이때 게이지를 **아예 그리지 않는다** — "여유 있음"과 "플러그인 고장"이 닮으면 사용자가
-   * 분간할 수 없다(계획서 §8).
+   * 분간할 수 없다.
    */
   notice: Record<Exclude<SourceState, 'ok' | 'stale'>, Notice>;
   noData: Notice;
@@ -603,7 +603,7 @@ const body = (vm: UsageViewModel, opts: RenderOptions, nowMs: number): string =>
  * 코드 밖의 **가정**이 됐다({@link ACCENT_DIM} 참고).
  *
  * ⚠ 남은 시간은 렌더 시점 기준으로 굳는다. 다시 그리는 계기는 폴링뿐이므로 표시된
- * 카운트다운은 최대 폴링 간격만큼 낡을 수 있다(SPEC §19).
+ * 카운트다운은 최대 폴링 간격만큼 낡을 수 있다(SPEC "남은 시간은 폴링 해상도까지만 정확하다").
  */
 export const renderGauge = (vm: UsageViewModel, opts: RenderOptions, nowMs: number): string => {
   const { w, h } = CANVAS[opts.surface];

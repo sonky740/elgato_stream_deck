@@ -6,7 +6,7 @@ import { assignSlots, type UsageSlots, type UsageWindow } from './types';
 
 /**
  * statusline 훅이 남긴 캐시 경로. Claude Code 가 서버에서 받아온 값을 우리 스크립트가 덮어써 둔
- * 것이라 로컬 파일이지만 수치는 계정 범위·서버 계산이다(ai-limits-plan.md §4.3).
+ * 것이라 로컬 파일이지만 수치는 계정 범위·서버 계산이다.
  *
  * 호출 시점에 해석한다 — 모듈 로드 시점에 고정하면 환경변수 변경이 플러그인 재시작을 요구한다.
  */

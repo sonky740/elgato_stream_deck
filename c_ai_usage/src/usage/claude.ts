@@ -16,7 +16,7 @@ const FIVE_HOUR_SEC = 5 * 60 * 60;
 const WEEK_SEC = 7 * 24 * 60 * 60;
 
 /**
- * Claude 구독 사용량 소스. 2단 읽기다(ai-limits-plan.md §4.3):
+ * Claude 구독 사용량 소스. 2단 읽기다:
  * tier 1 statusline 캐시가 신선하면 네트워크 0, 아니면 tier 2 로 직접 GET.
  *
  * 어느 tier 든 수치는 서버 계산·계정 범위다. 로컬 사용량 로그(`~/.claude/projects/**`)는 읽지 않는다.

@@ -74,7 +74,7 @@ const summarize = (vm: UsageViewModel): string => {
  * 로컬 캐시 읽기라 공짜지만 여기서는 매번 레이트리밋된 HTTPS 요청이고, 다이얼 2개를 올리는
  * 순간 요청률이 2배가 된다.
  *
- * 이 구현이 지키는 네 규칙(ai-limits-plan.md §5 — §0 사고가 넷 다 어겼다):
+ * 이 구현이 지키는 네 규칙(과거 사고가 넷 다 어겼다):
  * 1. 동시 요청 1개  2. 실패 시 지수 백오프(간격이 절대 짧아지지 않는다)
  * 3. 연속 실패 → 서킷 오픈  4. 인스턴스 수가 요청률에 영향 없음
  */
@@ -101,7 +101,7 @@ export const createUsageService = (
 
   const emit = (next: UsageViewModel): void => {
     // 상태가 바뀔 때만 기록한다 — 매 폴링마다 찍으면 성공 경로가 로그를 가득 채운다.
-    // 수치는 PII 가 아니라 남겨도 되지만, 응답 본문은 어떤 경우에도 기록하지 않는다(§4.2).
+    // 수치는 PII 가 아니라 남겨도 되지만, 응답 본문은 어떤 경우에도 기록하지 않는다.
     if (next.state !== vm.state) {
       streamDeck.logger.info(
         `${source.provider} usage: ${vm.state} → ${next.state}${summarize(next)}`,
@@ -117,7 +117,7 @@ export const createUsageService = (
     if (timer !== undefined) {
       clearTimeout(timer);
     }
-    // 구독자가 없으면 재무장하지 않는다. 무조건 재무장이 §0 hot loop 의 핵심이었다.
+    // 구독자가 없으면 재무장하지 않는다. 무조건 재무장이 과거 hot loop 의 핵심이었다.
     if (listeners.size === 0) {
       timer = undefined;
       return;

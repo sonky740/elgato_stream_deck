@@ -10,7 +10,7 @@ import { fakeSourceFromEnv } from './usage/fake';
 import { createUsageService } from './usage/service';
 
 // trace 를 쓰지 않는다 — Codex 사용량 응답 본문에 email 등 PII 가 평문으로 실려 로그 파일로 새어나간다
-// (ai-limits-plan.md §4.2 · §10). 응답 본문은 어떤 레벨에서도 그대로 기록하지 않는다.
+// (SPEC "응답 본문을 로그·캐시·디스크에 그대로 쓰지 않는다").
 streamDeck.logger.setLevel('info');
 
 /** 이 나이를 넘은 마지막 성공값은 더 보여주지 않고 실패 상태를 그대로 드러낸다. */

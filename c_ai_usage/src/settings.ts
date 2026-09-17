@@ -4,7 +4,7 @@ import type { Basis, ChartType, Thresholds } from './render/gauge';
  * 인스턴스별 설정. 다이얼 2개에 서로 다른 차트를 띄울 수 있어야 하므로 전역이 아니다.
  *
  * ⚠ 액션 설정은 **평문으로 저장되고 Stream Deck 프로필 export 에 포함된다.** 토큰류를 절대
- * 여기 두지 않는다 — 프로필을 공유하거나 백업하면 같이 나간다(ai-limits-plan.md §9).
+ * 여기 두지 않는다 — 프로필을 공유하거나 백업하면 같이 나간다(SPEC "설정 스코프").
  */
 export type GaugeSettings = {
   chart?: ChartType;
@@ -45,7 +45,7 @@ const MAX_THRESHOLD = 100;
 
 /**
  * 폴링 간격 기본·한계. 하한 60s 는 게이트 2 실측(60s 간격 12회 429 0건)에 근거한다 —
- * 그보다 짧게 열어두면 사용자가 §0 사고를 재현할 수 있다.
+ * 그보다 짧게 열어두면 사용자가 과거의 폭주 사고를 재현할 수 있다.
  */
 export const DEFAULT_POLL_SEC = 300;
 export const MIN_POLL_SEC = 60;

@@ -21,7 +21,7 @@ const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
  * Claude 와 두 가지가 근본적으로 다르다:
  * 1. 창 길이가 응답에 실려 온다(`limit_window_seconds`) — Claude 는 키 이름으로 추론해야 한다.
  * 2. 2026-07-13 이후 창을 **1개(주간)만** 반환한다. 5HR 슬롯은 공란이 정상이고, OpenAI 가
- *    창을 되살리면 길이 버킷팅이 코드 변경 없이 채운다(ai-limits-plan.md §2).
+ *    창을 되살리면 길이 버킷팅이 코드 변경 없이 채운다(SPEC "슬롯은 2개 고정, 채울 데이터가 없으면 공란").
  */
 export class CodexSource implements LimitsSource {
   readonly provider = 'codex' as const;
@@ -42,7 +42,7 @@ export class CodexSource implements LimitsSource {
     }
     // getJson 이 자기 UA 를 붙이고 content-type 을 파싱 전에 검사한다 — chatgpt.com 은
     // Cloudflare 봇 게이트가 있어 기본 UA 면 403 + HTML 챌린지가 오고, 그걸 JSON 으로 파싱하면
-    // 인증 실패와 구분할 수 없는 엉뚱한 에러가 된다(§4.2).
+    // 인증 실패와 구분할 수 없는 엉뚱한 에러가 된다.
     const res = await getJson(USAGE_URL, headers);
     if (res.kind === 'failed') {
       return { state: res.state, slots: EMPTY_SLOTS };
