@@ -10,10 +10,9 @@ export const TEXT = '#f4f4f5';
 export const ACCENT = { claude: '#d97757', codex: '#10a37f' };
 
 /**
- * 조역 아크의 흐린 accent. 여기서는 **8자리 hex(알파)를 써도 된다** — 이 SVG 는 Chrome 이
- * 오프라인에서 PNG 로 굽고, 기기에 올라가는 건 PNG 다. 실기기 래스터라이저가 8자리 hex 를
- * 못 읽는 제약은 `src/render/gauge.ts` 쪽(런타임 SVG)에만 적용된다 — 여기를 6자리로
- * "고치면" 투명 배경 자산에서 배경과 섞을 수 없어 오히려 어긋난다.
+ * 조역 아크의 흐린 accent. 여기서는 **8자리 hex(알파)를 써도 된다** — Chrome 이 오프라인에서
+ * PNG 로 굽고 기기에는 PNG 가 올라가므로, 6자리 제약은 런타임 SVG(`src/render/gauge.ts`)에만
+ * 걸린다. 여기를 6자리로 "고치면" 투명 배경 자산에서 배경과 섞을 수 없어 오히려 어긋난다.
  */
 export const dim = (provider) => `${ACCENT[provider]}8c`;
 
@@ -25,12 +24,9 @@ export const MONO = '#ffffff';
 export const MONO_DIM = `${MONO}8c`;
 
 /**
- * 크기대별 기하 비율. **논리 크기**로 분기한다 — 1x/2x 는 같은 논리 크기를 다른 해상도로
- * 그리는 것이므로 같은 분기를 타야 디자인이 일치한다(40px 자산에 40px 분기를 쓰면
- * icon@2x 가 icon 과 다른 그림이 된다).
- *
- * 작아질수록 스트로크를 줄이고 두 아크를 벌린다 — 그대로 축소하면 간격이 1~2px 로 떨어져
- * 두 겹이 한 덩어리로 보이고, 두 겹이 두 창을 뜻한다는 의미가 사라진다.
+ * 크기대별 기하 비율. **논리 크기**로 분기해야 1x/2x 가 같은 그림이 된다(40px 자산에 40px
+ * 분기를 쓰면 `icon@2x` 가 `icon` 과 달라진다). 작아질수록 두 아크를 벌리는 이유는, 그대로
+ * 축소하면 간격이 1~2px 로 떨어져 "두 겹 = 두 창"이라는 의미가 사라지기 때문이다.
  */
 export const geom = (logical) => {
   if (logical <= 24) {

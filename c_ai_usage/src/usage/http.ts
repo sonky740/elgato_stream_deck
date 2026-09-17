@@ -28,11 +28,9 @@ const statusToState = (status: number, body: string): SourceState => {
 };
 
 /**
- * JSON GET 1회. 실패를 throw 하지 않고 {@link SourceState} 로 되돌린다.
- *
- * `content-type` 을 파싱 **전에** 검사한다: chatgpt.com 은 Cloudflare 봇 게이트에 걸리면
- * status 403 에 HTML 챌린지 본문을 준다. 그걸 JSON.parse 하면 인증 실패와 구분할 수 없는
- * 엉뚱한 메시지로 throw 되어, 진단 불가능한 일반 에러로 렌더된다.
+ * JSON GET 1회. 실패를 throw 하지 않고 {@link SourceState} 로 되돌린다. `content-type` 을 파싱
+ * **전에** 검사하는 이유는 chatgpt.com 이 Cloudflare 봇 게이트에서 403 + HTML 챌린지를 주기
+ * 때문이다 — 그걸 파싱하면 인증 실패와 구분할 수 없는 일반 에러로 렌더된다.
  */
 export const getJson = async (
   url: string,

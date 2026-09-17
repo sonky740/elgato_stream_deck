@@ -11,10 +11,8 @@ const execFileAsync = promisify(execFile);
 
 /**
  * macOS 미디어 브리지 — vendor된 `ungive/mediaremote-adapter`를 out-of-process로 구동한다.
- *
- * macOS 15.4+ 는 앱 내부에서 `MRMediaRemoteGetNowPlayingInfo`를 호출하면 nil 을 반환하므로,
- * 시스템 바이너리(`/usr/bin/perl`)가 MediaRemote 프레임워크를 동적 로드하는 어댑터를 별도
- * 프로세스로 실행해 곡 정보와 제어를 얻는다. 빌드/vendor 내역은 저장소 루트 CLAUDE.md 참고.
+ * macOS 15.4+ 가 앱 내부의 `MRMediaRemoteGetNowPlayingInfo` 에 nil 을 반환하는 것이 이 구조의
+ * 이유다. 제약·빌드·vendor 내역은 저장소 루트 CLAUDE.md 참고.
  */
 
 // MRACommand IDs (include/MediaRemoteAdapter.h)

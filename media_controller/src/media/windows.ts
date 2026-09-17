@@ -10,21 +10,11 @@ import type { MediaController, NowPlaying } from './types';
 const execFileAsync = promisify(execFile);
 
 /**
- * Windows 미디어 브리지 — vendored SMTC 헬퍼(.NET)를 out-of-process로 구동한다.
+ * Windows 미디어 브리지 — vendored SMTC 헬퍼(.NET)를 out-of-process로 구동한다. 네이티브
+ * 애드온(NodeRT)을 앱 번들 Node 의 ABI 에 맞춰 빌드하는 것이 취약해, darwin.ts 와 같은 구조로
+ * 헬퍼 exe 에 shell out 한다. 헬퍼 계약·빌드는 저장소 루트 CLAUDE.md 참고.
  *
- * Stream Deck 플러그인은 앱이 번들한 Node 24 에서 돌아, WinRT 네이티브 애드온(NodeRT)을
- * 그 ABI에 맞춰 빌드·번들하기가 취약하다. 그래서 macOS(mediaremote-adapter)와 같은 구조로
- * `Windows.Media.Control`(SMTC)를 호출하는 작은 헬퍼 exe 에 shell out 한다.
- *
- * 헬퍼 계약 (smtc-helper/Program.cs):
- *   - `smtc-helper stream` : SMTC 변경 시마다 한 줄 JSON(payload 또는 "null")을 stdout 출력
- *   - `smtc-helper send <playpause|next|previous>` : 현재 세션에 제어 명령 전달
- *   payload 키: title/artist/album/playing(bool)/artworkData(base64)/artworkMimeType
- *
- * 빌드/vendor: scripts/build-smtc-helper.ps1 (Windows + .NET SDK 필요). 저장소 루트 CLAUDE.md 참고.
- *
- * ⚠️ 이 브리지는 Windows 에서 아직 검증되지 않았다(코드/구조만 작성). darwin.ts 와 동일한
- *    수명·서킷브레이커·정리 패턴을 따른다.
+ * ⚠️ Windows 에서 아직 검증되지 않았다(코드/구조만 작성).
  */
 
 const CMD_PLAY_PAUSE = 'playpause';

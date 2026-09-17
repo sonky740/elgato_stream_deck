@@ -10,10 +10,9 @@ export const resolveLang = (appLanguage: string): Lang => {
 };
 
 /**
- * 현재 언어. 렌더 경로에서 `streamDeck.i18n.language` 를 직접 읽지 않는 이유는 그 접근이
- * `streamDeck.info` 를 타고 connect 전에는 throw 하기 때문이다 — 렌더러는 순수 함수이고
- * 테스트·프리뷰가 SDK 없이 도는데, 언어를 SDK 에서 당겨오면 그 경로가 깨진다.
- * `plugin.ts` 가 connect 직후 한 번 심는다(렌더는 항상 그 뒤다).
+ * 현재 언어. 렌더 경로가 `streamDeck.i18n.language` 를 직접 읽지 않는 이유는 그 접근이 connect
+ * 전에 throw 해서, SDK 없이 도는 테스트·프리뷰가 깨지기 때문이다. `plugin.ts` 가 connect 직후
+ * 한 번 심는다(SPEC "`RenderOptions.lang` 은 필수다").
  */
 let lang: Lang = 'en';
 

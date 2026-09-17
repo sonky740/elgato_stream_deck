@@ -85,11 +85,9 @@ const mostBinding = (windows: readonly UsageWindow[]): UsageWindow | null => {
 };
 
 /**
- * 창 목록을 고정 슬롯 2개에 배정한다. 정확히 300분/10080분을 매칭하지 않고 범위로 잡는 이유는
- * 벤더가 창 길이를 조정해도 라벨이 깨지지 않게 하기 위해서다.
- *
- * 버킷 안에 여러 창이 있으면 **utilization 이 가장 높은 것**을 고른다 — `seven_day` 26% 와
- * `seven_day_opus` 80% 가 함께 올 때 사용자의 실제 제약은 후자다.
+ * 창 목록을 고정 슬롯 2개에 배정한다. 정확한 값이 아니라 범위로 잡는 이유는 벤더가 창 길이를
+ * 조정해도 라벨이 깨지지 않게 하기 위해서다. 버킷 안에 여러 창이 있으면 utilization 이 가장
+ * 높은 것을 고른다(SPEC "버킷 안에 여러 창이 있으면 utilization 이 가장 높은 것을 고른다").
  */
 export const assignSlots = (windows: readonly UsageWindow[]): UsageSlots => {
   return {

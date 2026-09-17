@@ -1,20 +1,15 @@
 import { existsSync } from 'node:fs';
 
 /**
- * 게이트 1 — Stream Deck SVG 래스터라이저 실기기 확인용 프로브.
+ * Stream Deck SVG 래스터라이저 실기기 확인용 프로브. 어떤 SVG 기능까지 그리는지가 어디에도
+ * 문서화돼 있지 않아, 게이지가 의존하는 것(arc path · `<text>` · 한글 글리프)은 실기기에서만
+ * 확인된다 — 헤드리스 Chrome 으로는 Chrome 의 렌더러를 검증할 뿐이다.
  *
- * Elgato 스키마는 pixmap `value` 와 `setImage` 가 raw SVG 문자열·base64 data URI 를 받는다고
- * 명시하지만, **어떤 SVG 기능까지 그리는지는 어디에도 문서화돼 있지 않다.** 게이지가 의존하는
- * 것(arc path · `<text>` · 한글 글리프)이 실제로 나오는지는 실기기에서만 알 수 있다 —
- * 헤드리스 Chrome 으로는 Chrome 의 렌더러를 검증할 뿐이다.
+ * 각 단계가 **ASCII 로 자기 번호를 표시**하는 이유는 한글이 안 그려져도 어느 단계가 화면에
+ * 나왔는지 식별해야 하기 때문이다. 한글은 `KO:` 라벨 뒤에 붙여, 라벨만 보이고 뒤가 비면
+ * 글리프가 없다는 뜻이 된다.
  *
- * 각 단계는 **ASCII 로 자기 번호를 표시한다.** 한글이 안 그려지는 경우에도 어느 단계가 화면에
- * 나왔는지 식별할 수 있어야 하기 때문이다 — 1차 관찰에서 이게 없어 단계 구분이 안 됐다.
- * 한글 검증은 `KO:` 라벨 뒤에 붙여, 라벨만 보이고 뒤가 비면 글리프가 없다는 뜻이 된다.
- *
- * 켜는 법 — 둘 중 하나:
- *   touch com.sonky.c-ai-usage.sdPlugin/.svg-probe   (Stream Deck 이 띄우는 프로세스용)
- *   C_AI_USAGE_SVG_PROBE=1                            (직접 띄울 때용)
+ * 켜는 법: `touch com.sonky.c-ai-usage.sdPlugin/.svg-probe` 또는 `C_AI_USAGE_SVG_PROBE=1`
  */
 
 export type ProbeStage = { name: string; describe: string; payload: string };

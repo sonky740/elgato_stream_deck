@@ -16,12 +16,9 @@ import {
 const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
 
 /**
- * Codex 구독 사용량 소스.
- *
- * Claude 와 두 가지가 근본적으로 다르다:
- * 1. 창 길이가 응답에 실려 온다(`limit_window_seconds`) — Claude 는 키 이름으로 추론해야 한다.
- * 2. 2026-07-13 이후 창을 **1개(주간)만** 반환한다. 5HR 슬롯은 공란이 정상이고, OpenAI 가
- *    창을 되살리면 길이 버킷팅이 코드 변경 없이 채운다(SPEC "슬롯은 2개 고정, 채울 데이터가 없으면 공란").
+ * Codex 구독 사용량 소스. Claude 와 달리 창 길이가 응답에 실려 온다(`limit_window_seconds`).
+ * 2026-07-13 이후 창을 **1개(주간)만** 반환하므로 5HR 슬롯 공란이 정상이고, 되살아나면 길이
+ * 버킷팅이 코드 변경 없이 채운다(SPEC "슬롯은 2개 고정, 채울 데이터가 없으면 공란").
  */
 export class CodexSource implements LimitsSource {
   readonly provider = 'codex' as const;
@@ -93,14 +90,9 @@ const toWindow = (raw: unknown): UsageWindow | null => {
 };
 
 /**
- * 응답을 슬롯 2개로 정규화한다.
- *
- * **슬롯 위치로 라벨을 붙이지 않는다.** `primary_window` 는 2026-03~07 에 5시간 창, 07-13
- * 부터 주간 창을 담았다 — 같은 계정에서 뒤집혔다. 라벨과 슬롯 배정은 `limit_window_seconds`
- * 에서만 파생한다.
- *
- * ⚠ 응답 본문에는 `email`·`user_id`·`account_id` 가 평문으로 들어 있다. 여기서 필요한 필드만
- * 꺼내고 본문을 그대로 들고 나가지 않는 것이 PII 차단 지점이다 — 뷰모델에는 숫자만 남는다.
+ * 응답을 슬롯 2개로 정규화한다. `primary_window` 가 같은 계정에서 5시간→주간으로 뒤집힌 적이
+ * 있어 라벨은 `limit_window_seconds` 에서만 파생한다(SPEC "창 라벨은 응답의 슬롯 위치가 아니라
+ * 창 길이에서 파생한다"). ⚠ 본문에 PII 가 평문으로 와, 필드만 꺼내는 여기가 차단 지점이다.
  */
 export const parseUsage = (body: unknown): FetchResult => {
   const rateLimit = asRecord(asRecord(body)?.['rate_limit']);

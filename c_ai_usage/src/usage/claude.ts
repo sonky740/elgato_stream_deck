@@ -89,12 +89,8 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
 };
 
 /**
- * 응답을 슬롯 2개로 정규화한다.
- *
- * 창 슬롯을 **열거하지 않고 순회**한다 — 이 계정에서만 13개가 오고(11개는 null) 코드네임 슬롯이
- * 계속 추가된다. 이름을 나열하면 새 창이 생길 때 조용히 누락된다.
- *
- * `limits[]` 배열은 v1 에서 쓰지 않는다: 같은 수치를 int 로 담아(`percent` 12 vs `utilization` 12.0)
+ * 응답을 슬롯 2개로 정규화한다. 창 슬롯을 열거하지 않고 순회하는 이유는 SPEC "창 슬롯을
+ * 열거하지 않고 순회한다" 에 있다. `limits[]` 배열은 쓰지 않는다 — 같은 수치를 int 로 담아
  * 소수점 해상도를 잃고, scoped 항목의 `resets_at` 이 null 로 오는데 창 객체는 값을 갖는다.
  */
 export const parseUsage = (body: unknown): FetchResult => {

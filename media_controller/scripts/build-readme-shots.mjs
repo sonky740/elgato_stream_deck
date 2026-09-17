@@ -1,12 +1,8 @@
 #!/usr/bin/env node
 /**
- * README 용 스크린샷 생성 — `docs/dial.png` (터치스트립 200×100).
- *
- * 그림은 실기기 캡처가 아니라 레이아웃 정의로부터의 재구성이다 — 이유와 한계는
- * [lib/dial-svg.mjs](lib/dial-svg.mjs) 에 있다.
- *
- * ⚠ **배경을 굽는다.** 레이아웃에 배경 item 이 없어 기기에서는 프로필 배경이 비친다 — 투명 PNG 로
- * 내보내면 GitHub 라이트 모드에서 흰 글자가 사라진다. c_ai_usage 와 같은 `#16181c` 를 쓴다.
+ * README 용 스크린샷 생성 — `docs/dial.png` (터치스트립 200×100). 실기기 캡처가 아니라 레이아웃
+ * 재구성이고, 이유와 한계는 [lib/dial-svg.mjs](lib/dial-svg.mjs) 에 있다. ⚠ **배경을 굽는다** —
+ * 투명 PNG 로 내보내면 GitHub 라이트 모드에서 흰 글자가 사라진다.
  *
  * 사용: node scripts/build-readme-shots.mjs   (헤드리스 Chrome 필요)
  */

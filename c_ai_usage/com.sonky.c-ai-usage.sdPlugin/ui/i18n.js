@@ -5,19 +5,9 @@
 /**
  * Property Inspector 문구. 두 PI(claude·codex)가 이 한 테이블을 공유한다.
  *
- * sdpi-components 는 `label`·`<option>` 의 `__MSG_<key>__` 를 여기서 찾는다
- * (`SDPIComponents.i18n.locales`). 언어는 라이브러리가 `navigator.language` 로 잡고 없는 키는
- * `en` 으로 떨어지므로, 지원 언어 8개 중 ko 외에는 전부 영어가 된다.
- *
- * ⚠ `sdpi-components.js` **뒤 · `<body>` 앞**에서 동기 로드해야 한다. 커스텀 엘리먼트가
- * 업그레이드될 때 `locales` 가 이미 있어야 문구가 치환된다 — 늦게 넣으면 `__MSG_…__` 가 그대로
- * 화면에 남는다.
- *
- * ⚠ 키에 점(`.`)을 쓰지 않는다. 룩업이 키를 dotted path 로 훑어 `ko.a['b']` 를 찾으므로 조용히
- * 빈 문자열이 된다. (플러그인 쪽 `streamDeck.i18n.t()` 도 같은 제약이다.)
- *
- * ⚠ 언어 신호가 플러그인과 다르다 — 여기는 웹뷰의 `navigator.language`, 게이지·매니페스트는
- * 스트림덱 앱 언어다. OS 와 앱 언어를 다르게 쓰면 PI 만 다른 언어가 될 수 있다(v1 수용).
+ * ⚠ `sdpi-components.js` **뒤 · `<body>` 앞**에서 동기 로드해야 한다 — 엘리먼트 업그레이드
+ * 시점에 `locales` 가 없으면 `__MSG_…__` 가 화면에 그대로 남는다. 키에 점(`.`)을 쓰지 않는
+ * 이유와 언어 신호가 앱이 아니라 `navigator.language` 인 점은 저장소 루트 CLAUDE.md 참고.
  */
 SDPIComponents.i18n.locales = {
   ko: {

@@ -67,10 +67,8 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
 
 /**
  * Claude Code 의 OAuth access token 을 읽는다. macOS 는 키체인, 그 외는 파일.
- *
- * 읽기만 한다 — refresh 는 절대 하지 않는다. refresh token 은 1회용으로 회전하므로
- * 여기서 갱신하면 Claude Code CLI 가 무효 토큰을 들고 남아 로그아웃된다(SPEC "토큰 refresh 를 절대 하지 않는다").
- * 만료 시엔 재로그인 안내를 렌더하고, CLI 가 다음 실행에서 갱신하면 다음 폴링에 자동 복구된다.
+ * 읽기만 한다 — refresh token 이 1회용으로 회전해 여기서 갱신하면 CLI 가 로그아웃된다
+ * (SPEC "토큰 refresh 를 절대 하지 않는다"). 만료는 CLI 가 갱신하면 다음 폴링에 풀린다.
  */
 export const readClaudeCredential = async (): Promise<ClaudeCredential | null> => {
   const envToken = process.env.CLAUDE_CODE_OAUTH_TOKEN;

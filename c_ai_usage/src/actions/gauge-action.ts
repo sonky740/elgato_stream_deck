@@ -33,10 +33,8 @@ const CANVAS_KEY = 'canvas';
 
 /**
  * 회전 스로틀 창. 한 번 휙 돌리면 `dialRotate` 가 연달아 도착해 차트가 여러 칸 튄다.
- *
- * debounce 가 아니라 **leading-edge throttle** 이다 — 첫 이벤트를 즉시 반영하고 창 안의
- * 나머지를 버린다. debounce 면 회전이 멎을 때까지 화면이 가만히 있어, 이 매핑을 순환으로
- * 되돌린 이유였던 "돌려도 반응이 없다" 가 되살아난다.
+ * debounce 가 아니라 **leading-edge throttle** 인 이유는, debounce 면 회전이 멎을 때까지
+ * 화면이 가만히 있어 이 매핑을 순환으로 되돌린 이유가 그대로 되살아나기 때문이다.
  */
 export const ROTATE_THROTTLE_MS = 400;
 
@@ -50,11 +48,9 @@ export const REFRESH_COMMAND = 'refresh';
 type PiMessage = { event?: string };
 
 /**
- * 사용량 게이지 액션의 공통 배관. 프로바이더별 서브클래스는 `@action({ UUID })` 만 붙인다 —
- * 프로바이더 차이는 전부 주입된 {@link UsageService} 뒤에 있다.
- *
- * 폴링 타이머를 갖지 않는다. 공유 서비스를 구독하고 값이 오면 그릴 뿐이다 — 인스턴스마다
- * 타이머를 두면 다이얼 2개를 올리는 순간 레이트리밋된 요청이 2배가 된다(SPEC "액션 인스턴스 수가 요청률에 영향을 주지 않는다").
+ * 사용량 게이지 액션의 공통 배관. 프로바이더별 서브클래스는 `@action({ UUID })` 만 붙이고,
+ * 차이는 전부 주입된 {@link UsageService} 뒤에 있다. 폴링 타이머를 갖지 않는다
+ * (SPEC "액션 인스턴스 수가 요청률에 영향을 주지 않는다").
  */
 export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
   readonly #service: UsageService;
@@ -62,10 +58,8 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
   readonly #detachers = new Map<string, () => void>();
   /**
    * 인스턴스별 마지막 전송 페이로드. 같으면 재전송하지 않는다(수 KB 낭비 방지).
-   *
-   * 게이지에 남은 시간 카운트다운이 들어간 뒤로는 폴링마다 문구가 달라져 이 가드가 걸리는
-   * 일이 드물다. 여전히 필요한 건 **설정 변경 경로** 다 — `#apply` 의 명시적 렌더와
-   * `didReceiveSettings` 에코가 겹쳐 같은 페이로드를 두 번 보내는 것을 여기서 막는다.
+   * 카운트다운이 들어간 뒤로 폴링 경로에서는 거의 안 걸린다 — 남은 쓸모는 **설정 변경 경로** 로,
+   * `#apply` 의 렌더와 `didReceiveSettings` 에코가 같은 페이로드를 두 번 보내는 것을 막는다.
    */
   readonly #lastSent = new Map<string, string>();
   /** 인스턴스별 마지막 뷰모델. 설정만 바뀌었을 때 네트워크 없이 다시 그리기 위해 보관한다. */
@@ -144,12 +138,9 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
   }
 
   /**
-   * 다이얼 회전 → 회전 방향으로 차트 한 칸. 목록 양끝에서 감싸므로 같은 방향으로 계속 돌려도
-   * 계속 바뀐다 — 조작마다 화면이 반응하는 것이 다이얼의 기대 동작이다.
-   *
-   * 한 번 휙 돌리면 이벤트가 연달아 오므로 {@link ROTATE_THROTTLE_MS} 로 비율을 제한한다.
-   * 스텝도 `ticks` 크기가 아니라 방향(±1)이다 — 한 이벤트에 `ticks` 가 여러 개 실려 오는데
-   * 차트가 2종이라 크기만큼 이동하면 짝수 입력이 제자리가 되어 반응이 없는 것처럼 보인다.
+   * 다이얼 회전 → 방향으로 차트 한 칸. 양끝에서 감싸므로 같은 방향으로 계속 돌려도 계속 바뀐다.
+   * 스텝이 `ticks` 크기가 아니라 방향(±1)인 이유는, 한 이벤트에 `ticks` 가 여러 개 실려 오는데
+   * 차트가 2종이라 크기만큼 이동하면 짝수 입력이 제자리가 되어 반응이 없어 보이기 때문이다.
    */
   override async onDialRotate(ev: DialRotateEvent<GaugeSettings>): Promise<void> {
     const now = Date.now();
@@ -185,10 +176,8 @@ export abstract class GaugeActionBase extends SingletonAction<GaugeSettings> {
 
   /**
    * 바뀐 설정을 저장하고 즉시 다시 그린다. 호출부가 `{ ...settings }` 를 펼쳐 넘겨야 한다 —
-   * `setSettings` 는 인스턴스 설정을 통째로 덮어쓰므로 빠뜨린 필드는 날아간다.
-   *
-   * 플러그인 자신의 `setSettings` 가 `didReceiveSettings` 로 돌아온다는 보장이 없어 렌더를
-   * 명시적으로 한다 — 돌아온다 해도 `#lastSent` 가 같은 페이로드를 걸러내므로 중복이 없다.
+   * `setSettings` 는 인스턴스 설정을 통째로 덮어쓰므로 빠뜨린 필드는 날아간다. 렌더를 명시적으로
+   * 하는 이유는 자신의 `setSettings` 가 `didReceiveSettings` 로 돌아온다는 보장이 없어서다.
    */
   async #apply(action: GaugeAction, next: GaugeSettings): Promise<void> {
     this.#settings.set(action.id, next);
@@ -266,14 +255,9 @@ const startProbe = (action: GaugeAction): (() => void) => {
 };
 
 /**
- * SVG 를 Stream Deck 이 받는 형식으로 감싼다.
- *
- * **raw `<svg …>` 문자열은 pixmap 에서 그려지지 않는다** — 실기기 확인 결과다(2026-08-04).
- * Elgato 의 layout 스키마는 pixmap `value` 가 "a path …, a base64 encoded `string` …, or an
- * SVG `string`" 을 받는다고 적었지만 raw 문자열은 빈 화면이 되고 전송 오류도 나지 않는다.
- * 값이 경로로 먼저 해석되어 해석 실패로 끝나는 것으로 보인다(스키마 설명의 첫 항목이 경로다).
- *
- * base64 data URI 는 같은 스키마의 워크드 예시 형식이고 실기기에서 확인됐다.
+ * SVG 를 Stream Deck 이 받는 형식으로 감싼다. ⚠ **raw `<svg …>` 문자열은 pixmap 에서 그려지지
+ * 않는다** — 빈 화면이 되고 전송 오류도 나지 않는다(실기기 2026-08-04). 스키마는 SVG string 도
+ * 받는다고 적었지만 값이 경로로 먼저 해석되는 것으로 보인다. base64 data URI 만 확인됐다.
  */
 const encodeSvg = (svg: string): string => {
   return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;

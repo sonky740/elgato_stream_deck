@@ -22,11 +22,9 @@ const POLL_INTERVAL_MS = 1000;
 const FALLBACK_ART = 'imgs/actions/now-playing/encoder-icon';
 
 /**
- * 현재 재생 중인 곡을 표시하고 제어하는 액션. Stream Deck + 다이얼과 일반 키를 모두 지원한다.
- * - 다이얼(터치스트립): 앨범 아트 + 제목 + 가수 + 앨범 표시 / 회전=이전·다음 / 누름·터치=재생·정지
- * - 키: 앨범 아트(이미지) + 제목(타이틀) 표시 / 누름=재생·정지 (이전·다음은 별도 Next/Previous 키 액션)
- *
- * 곡 정보는 컨트롤러 타입과 무관하게 동일한 1s 폴링으로 받아 surface 별로만 렌더가 갈린다.
+ * 현재 재생 중인 곡을 표시하고 제어하는 액션. 다이얼과 키를 모두 지원하며, 곡 정보는 surface 와
+ * 무관하게 같은 1s 폴링으로 받고 렌더만 갈린다(다이얼은 `setFeedback`, 키는 `setImage`+`setTitle`).
+ * 컨트롤 매핑은 저장소 루트 CLAUDE.md 참고.
  */
 @action({ UUID: 'com.sonky.media-controller.now-playing' })
 export class NowPlayingAction extends SingletonAction {

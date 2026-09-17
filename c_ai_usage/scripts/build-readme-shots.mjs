@@ -1,16 +1,11 @@
 #!/usr/bin/env node
 /**
- * README 용 스크린샷 생성 — `docs/` 아래 4장(키·다이얼 × 도넛·바).
+ * README 용 스크린샷 생성 — `docs/` 아래 4장(키·다이얼 × 도넛·바). 입력은 `npm test` 가 만드는
+ * `preview/*.svg` 의 `en-` 세트다 — 렌더러 사본을 만들면 README 이미지가 실제 렌더와 따로 낡는다.
  *
- * 입력은 `npm test` 가 만드는 `preview/*.svg` 다. 렌더러를 다시 구현하지 않는 이유가 그것이다 —
- * 사본을 만들면 README 이미지가 실제 렌더와 따로 낡는다. preview 는 `ko-`/`en-` 두 세트인데
- * README 가 영문이므로 **`en-` 쪽**을 쓴다.
- *
- * ⚠ **배경을 굽는다.** 런타임 SVG 는 캔버스를 칠하지 않으므로(SPEC "캔버스를 칠하지 않는다") 그대로 PNG 로 만들면
- * 투명 배경이 되고, GitHub 라이트 모드의 흰 배경에서 판독 숫자(`#f4f4f5`)가 사라진다. 여기서
- * 칠하는 `#16181c` 는 스트림덱 프로필 배경을 대신하는 것이다 — README 에도 그렇게 적었다.
- * (`build-icons.mjs` 의 `--default-background-color=00000000` 을 복사하면 안 된다. 그건
- * 투명 PNG 가 필요한 아이콘용이고, 여기서는 정확히 그게 실패다.)
+ * ⚠ **배경을 굽는다.** 런타임 SVG 는 캔버스를 칠하지 않아(SPEC "캔버스를 칠하지 않는다") 그대로
+ * 내보내면 투명 PNG 가 되고 GitHub 라이트 모드에서 판독 숫자가 사라진다. `build-icons.mjs` 의
+ * `--default-background-color=00000000` 을 복사하면 정확히 그 실패가 된다.
  *
  * 사용: npm test && node scripts/build-readme-shots.mjs   (헤드리스 Chrome 필요)
  */
