@@ -13,6 +13,8 @@ const STALE_LIMIT = 30 * 60_000;
 const MANUAL_GAP = 60_000;
 /** 첫 fetch 의 jitter 상한(service.ts 와 같은 값). 이 시간을 넘기면 확실히 발화한다. */
 const JITTER = 5000;
+/** 로컬 실패를 백오프 없이 재확인하는 횟수 상한(service.ts 의 LOCAL_RETRY_LIMIT 과 같은 값). */
+const LOCAL_RETRY_LIMIT = 3;
 
 const OK_SLOTS: FetchResult = {
   state: 'ok',
@@ -21,6 +23,9 @@ const OK_SLOTS: FetchResult = {
     week: { label: 'WK', durationSec: 604800, utilization: 26, resetsAtMs: null },
   },
 };
+
+/** 요청을 만들지 않는 실패. 자격증명 만료 선판정이 내는 결과다. */
+const EXPIRED: FetchResult = { state: 'expired', slots: { fiveHour: null, week: null } };
 
 function fakeSource(results: FetchResult[]): LimitsSource & { calls: number } {
   let i = 0;
@@ -167,6 +172,43 @@ describe('createUsageService', () => {
     expect(gaps[2]).toBeGreaterThanOrEqual(gaps[1] ?? 0);
   });
 
+  it('로컬 자격증명 실패는 백오프 없이 정상 간격으로 다시 확인한다 — 요청을 만들지 않는 실패다', async () => {
+    const source = fakeSource([EXPIRED]);
+    collect(source);
+    await firstFetch();
+    // network 실패였다면 여기서 interval*2 를 기다려야 재요청이 온다.
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+    expect(source.calls).toBe(2);
+  });
+
+  it('로컬 실패가 상한을 넘으면 백오프로 넘어간다 — 401 도 expired 로 오므로 영원히 열어두지 않는다', async () => {
+    const source = fakeSource([EXPIRED]);
+    collect(source);
+    await firstFetch();
+    for (let i = 0; i < LOCAL_RETRY_LIMIT; i += 1) {
+      await vi.advanceTimersByTimeAsync(INTERVAL);
+    }
+    expect(source.calls).toBe(1 + LOCAL_RETRY_LIMIT);
+    // 상한을 쓴 뒤로는 일반 백오프(interval*2)다.
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+    expect(source.calls).toBe(1 + LOCAL_RETRY_LIMIT);
+    await vi.advanceTimersByTimeAsync(INTERVAL + 1);
+    expect(source.calls).toBe(2 + LOCAL_RETRY_LIMIT);
+  });
+
+  it('성공하면 로컬 실패 상한이 리셋된다 — 토큰은 주기적으로 만료되므로 한 번 쓰고 닫히면 안 된다', async () => {
+    const source = fakeSource([EXPIRED, EXPIRED, EXPIRED, OK_SLOTS, EXPIRED]);
+    collect(source);
+    await firstFetch();
+    // 로컬 재확인 3회 중 마지막이 성공 → 그 뒤 실패도 다시 정상 간격으로 재확인된다.
+    for (let i = 0; i < LOCAL_RETRY_LIMIT + 1; i += 1) {
+      await vi.advanceTimersByTimeAsync(INTERVAL);
+    }
+    expect(source.calls).toBe(1 + LOCAL_RETRY_LIMIT + 1);
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+    expect(source.calls).toBe(2 + LOCAL_RETRY_LIMIT + 1);
+  });
+
   it('구독이 끊기면 폴링을 멈춘다', async () => {
     const source = fakeSource([OK_SLOTS]);
     const { off } = collect(source);
@@ -279,6 +321,16 @@ describe('refresh (PI 수동 새로고침)', () => {
     expect(source.calls).toBe(1);
     // 원래 백오프 tick 은 그대로 남아 있다 — refresh 가 타이머를 건드리지 않았다.
     await vi.advanceTimersByTimeAsync(INTERVAL * 2);
+    expect(source.calls).toBe(2);
+  });
+
+  it('로컬 실패 중에는 버튼이 열려 있다 — 재로그인으로 이미 고쳐진 상태를 백오프로 가두지 않는다', async () => {
+    const source = fakeSource([EXPIRED]);
+    const { service } = collect(source);
+    await firstFetch();
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
     expect(source.calls).toBe(2);
   });
 

@@ -35,6 +35,18 @@ const MANUAL_MIN_GAP_MS = 60_000;
  */
 const SOFT_FAILURES: ReadonlySet<SourceState> = new Set<SourceState>(['throttled', 'network']);
 
+/**
+ * 요청을 만들지 않는 실패 — 자격증명이 없거나 만료 선판정에 걸린 상태다. 백오프는 실패가
+ * 요청 빈도를 올리는 경로를 막으려고 있으므로 요청 0건인 이 둘은 대상이 아니다. 먹이면 CLI
+ * 재로그인으로 이미 고쳐진 뒤에도 화면이 최대 15분 굳고 수동 새로고침까지 같이 막힌다.
+ */
+const LOCAL_FAILURES: ReadonlySet<SourceState> = new Set<SourceState>(['no-credential', 'expired']);
+/**
+ * 로컬 실패를 백오프 없이 재확인하는 횟수 상한. 401 도 `expired` 로 오므로(`http.ts`) 상한이
+ * 없으면 서버가 거부하는 토큰을 영원히 정상 간격으로 재시도한다.
+ */
+const LOCAL_RETRY_LIMIT = 3;
+
 export type UsageService = {
   /** 구독하고 즉시 현재 값을 1회 받는다. 반환된 함수를 disappear 에서 호출한다. */
   subscribe(listener: (vm: UsageViewModel) => void): () => void;
@@ -62,6 +74,8 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
   let timer: NodeJS.Timeout | undefined;
   let inFlight = false;
   let failures = 0;
+  /** `LOCAL_FAILURES` 로 백오프 없이 재확인한 횟수. 성공하면 리셋된다. */
+  let localRetries = 0;
   /** 마지막으로 **실제 요청을 시작한** 시각. 수동 새로고침 쿨다운의 기준이다. */
   let lastAttemptAtMs = 0;
   let lastGood: { slots: UsageSlots; fetchedAtMs: number } | null = null;
@@ -120,6 +134,7 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
 
       if (result.state === 'ok') {
         failures = 0;
+        localRetries = 0;
         lastGood = { slots: result.slots, fetchedAtMs: now };
         emit({ provider: source.provider, slots: result.slots, state: 'ok', fetchedAtMs: now });
         schedule(intervalMs);
@@ -145,6 +160,16 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
               fetchedAtMs: null,
             },
       );
+      // 요청 0건 실패는 상한까지 정상 간격으로 다시 확인한다. 상태 변화가 없으면 emit 이
+      // 로그를 남기지 않으므로, 기다리는 이유가 로그에서 사라지지 않게 여기서 한 줄 남긴다.
+      if (LOCAL_FAILURES.has(result.state) && localRetries < LOCAL_RETRY_LIMIT) {
+        localRetries += 1;
+        streamDeck.logger.info(
+          `${source.provider} usage: ${result.state} (local, recheck ${localRetries}/${LOCAL_RETRY_LIMIT})`,
+        );
+        schedule(intervalMs);
+        return;
+      }
       failures += 1;
       streamDeck.logger.warn(`${source.provider} usage: ${result.state} (${failures} in a row)`);
       schedule(backoffMs());
@@ -190,8 +215,8 @@ export function createUsageService(source: LimitsSource, opts: UsageServiceOptio
 
     refresh() {
       // 실패 중에는 창이 `backoffMs()` 다 — 그 값이 항상 `intervalMs` 이상이므로 버튼으로는
-      // 백오프를 앞당길 수 없다. 실패가 요청 빈도를 올리는 경로를 만들지 않는다는 규칙이
-      // 수동 경로에도 그대로 적용된다.
+      // 백오프를 앞당길 수 없다. 로컬 실패는 `failures` 를 올리지 않아 창이 60s 로 남는다 —
+      // 재로그인 직후 버튼이 동작해야 하는 경로이고, 그 fetch 도 상한 60s 를 넘지 않는다.
       const gapMs = failures === 0 ? MANUAL_MIN_GAP_MS : backoffMs();
       const waitedMs = Date.now() - lastAttemptAtMs;
       if (waitedMs < gapMs) {
