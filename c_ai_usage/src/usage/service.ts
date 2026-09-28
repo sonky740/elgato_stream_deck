@@ -229,6 +229,9 @@ export const createUsageService = (
         );
         return;
       }
+      // 상태가 그대로면 emit 이 기록하지 않아, 기억된 거부·선판정에 걸린 수동 fetch 는 흔적이 없다.
+      // 누를 때만 찍히므로 1분에 한 줄을 넘지 않는다.
+      streamDeck.logger.info(`${source.provider} usage: manual refresh`);
       // 구독자 0명 검사는 schedule() 이 갖는다 — 여기서 또 하면 같은 규칙이 두 곳에 생긴다.
       // 기존 타이머를 지우므로 다음 자동 폴링은 이 수동 fetch 시점부터 다시 센다.
       schedule(0);
