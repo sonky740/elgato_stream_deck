@@ -159,6 +159,20 @@ describe('createUsageService', () => {
     expect(source.calls).toBe(2);
   });
 
+  it('간격이 백오프 상한보다 길어도 실패 뒤 대기는 간격 아래로 내려가지 않는다 — 60분 간격에서 30분 상한이 재요청을 당기지 않게', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const hour = 60 * 60_000;
+    const source = fakeSource([{ state: 'network', slots: { fiveHour: null, week: null } }]);
+    const service = createUsageService(source, { intervalMs: hour, staleLimitMs: STALE_LIMIT });
+    service.subscribe(() => {});
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(1);
+    await vi.advanceTimersByTimeAsync(hour - 2);
+    expect(source.calls).toBe(1);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(source.calls).toBe(2);
+  });
+
   it('연속 실패가 쌓이면 요청 간격이 단조 증가한다', async () => {
     const source = fakeSource([{ state: 'network', slots: { fiveHour: null, week: null } }]);
     collect(source);

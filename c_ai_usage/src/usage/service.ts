@@ -16,7 +16,7 @@ export type UsageServiceOptions = {
   staleLimitMs: number;
 };
 
-/** 백오프 상한. 이보다 길게 기다리지는 않는다. */
+/** 지수 백오프의 상한. 폴링 간격이 이보다 길면 간격이 이긴다 — 실패 대기는 간격 아래로 내려가지 않는다. */
 const MAX_BACKOFF_MS = 30 * 60 * 1000;
 /** 연속 실패 이 횟수부터 서킷을 열고 고정 쿨다운으로 넘어간다. */
 const CIRCUIT_THRESHOLD = 4;
@@ -120,7 +120,7 @@ export const createUsageService = (
     if (failures >= CIRCUIT_THRESHOLD) {
       return Math.max(CIRCUIT_COOLDOWN_MS, intervalMs);
     }
-    return Math.min(intervalMs * 2 ** failures, MAX_BACKOFF_MS);
+    return Math.max(Math.min(intervalMs * 2 ** failures, MAX_BACKOFF_MS), intervalMs);
   };
 
   /**
