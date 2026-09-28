@@ -88,6 +88,32 @@ describe('로그 유출 방지', () => {
     assertClean();
   });
 
+  it('서버가 토큰을 거부했다고 기록할 때 그 토큰을 남기지 않는다', async () => {
+    const { CodexSource } = await import('./codex');
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const os = await import('node:os');
+    const home = mkdtempSync(path.join(os.tmpdir(), 'c-ai-usage-redact-'));
+    const payload = Buffer.from(JSON.stringify({ exp: 4102444800 })).toString('base64url');
+    writeFileSync(
+      path.join(home, 'auth.json'),
+      JSON.stringify({ tokens: { access_token: `eyJhbGciOiJSUzI1NiJ9.${payload}.sig` } }),
+    );
+    process.env['CODEX_HOME'] = home;
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } }),
+        ),
+    );
+    await new CodexSource().fetch();
+    delete process.env['CODEX_HOME'];
+
+    expect(logged.join('\n')).toContain('rejected');
+    assertClean();
+  });
+
   it('http 계층이 응답 본문을 반환값에 담지 않는다 — 담으면 호출자가 로그할 수 있다', async () => {
     const { getJson } = await import('./http');
     const html = readFileSync(path.join(FIXTURES, 'codex-cloudflare-challenge.html'), 'utf8');

@@ -1,5 +1,6 @@
 import streamDeck from '@elgato/streamdeck';
 
+import { CREDENTIAL_REJECTIONS } from './rejected-token';
 import {
   EMPTY_SLOTS,
   type LimitsSource,
@@ -36,16 +37,14 @@ const MANUAL_MIN_GAP_MS = 60_000;
 const SOFT_FAILURES: ReadonlySet<SourceState> = new Set<SourceState>(['throttled', 'network']);
 
 /**
- * 요청을 만들지 않는 실패 — 자격증명이 없거나 만료 선판정에 걸린 상태다. 백오프는 실패가
- * 요청 빈도를 올리는 경로를 막으려고 있으므로 요청 0건인 이 둘은 대상이 아니다. 먹이면 CLI
- * 재로그인으로 이미 고쳐진 뒤에도 화면이 최대 15분 굳고 수동 새로고침까지 같이 막힌다.
+ * 재확인이 요청을 되풀이하지 않는 실패 — 자격증명이 없거나, 만료 선판정에 걸렸거나, 서버가 거부한
+ * 토큰을 그대로 들고 있다. 거부 토큰은 소스가 TTL 동안 다시 보내지 않으므로(`RejectedToken`) 상한 없이
+ * 재확인해도 요청률이 늘지 않는다. 소스가 기억하는 집합에서 파생해 둘이 어긋나지 않게 한다.
  */
-const LOCAL_FAILURES: ReadonlySet<SourceState> = new Set<SourceState>(['no-credential', 'expired']);
-/**
- * 로컬 실패를 백오프 없이 재확인하는 횟수 상한. 401 도 `expired` 로 오므로(`http.ts`) 상한이
- * 없으면 서버가 거부하는 토큰을 영원히 정상 간격으로 재시도한다.
- */
-const LOCAL_RETRY_LIMIT = 3;
+const CREDENTIAL_FAILURES: ReadonlySet<SourceState> = new Set<SourceState>([
+  'no-credential',
+  ...CREDENTIAL_REJECTIONS,
+]);
 
 export type UsageService = {
   /** 구독하고 즉시 현재 값을 1회 받는다. 반환된 함수를 disappear 에서 호출한다. */
@@ -80,8 +79,6 @@ export const createUsageService = (
   let timer: NodeJS.Timeout | undefined;
   let inFlight = false;
   let failures = 0;
-  /** `LOCAL_FAILURES` 로 백오프 없이 재확인한 횟수. 성공하면 리셋된다. */
-  let localRetries = 0;
   /** 마지막으로 **실제 요청을 시작한** 시각. 수동 새로고침 쿨다운의 기준이다. */
   let lastAttemptAtMs = 0;
   let lastGood: { slots: UsageSlots; fetchedAtMs: number } | null = null;
@@ -126,6 +123,12 @@ export const createUsageService = (
     return Math.min(intervalMs * 2 ** failures, MAX_BACKOFF_MS);
   };
 
+  /**
+   * 백오프 대기 중인가. 자격증명 실패 중이면 앞선 요청 실패로 `failures` 가 남아 있어도 아니다 —
+   * 재확인 간격이 이미 `intervalMs` 라 짧아질 대기가 없다.
+   */
+  const inBackoff = (): boolean => failures > 0 && !CREDENTIAL_FAILURES.has(vm.state);
+
   const poll = async (): Promise<void> => {
     if (inFlight) {
       return;
@@ -140,7 +143,6 @@ export const createUsageService = (
 
       if (result.state === 'ok') {
         failures = 0;
-        localRetries = 0;
         lastGood = { slots: result.slots, fetchedAtMs: now };
         emit({ provider: source.provider, slots: result.slots, state: 'ok', fetchedAtMs: now });
         schedule(intervalMs);
@@ -166,13 +168,9 @@ export const createUsageService = (
               fetchedAtMs: null,
             },
       );
-      // 요청 0건 실패는 상한까지 정상 간격으로 다시 확인한다. 상태 변화가 없으면 emit 이
-      // 로그를 남기지 않으므로, 기다리는 이유가 로그에서 사라지지 않게 여기서 한 줄 남긴다.
-      if (LOCAL_FAILURES.has(result.state) && localRetries < LOCAL_RETRY_LIMIT) {
-        localRetries += 1;
-        streamDeck.logger.info(
-          `${source.provider} usage: ${result.state} (local, recheck ${localRetries}/${LOCAL_RETRY_LIMIT})`,
-        );
+      // 폴링마다 로그를 남기지 않는다 — 상한이 없어 만료가 이어지는 동안 끝없이 쌓인다.
+      // 전이는 emit 이 한 줄 남기고, 서버 거부는 소스가 남긴다.
+      if (CREDENTIAL_FAILURES.has(result.state)) {
         schedule(intervalMs);
         return;
       }
@@ -212,18 +210,18 @@ export const createUsageService = (
         return;
       }
       intervalMs = ms;
-      // 실패 중이면 다시 잡지 않는다 — 백오프·서킷 대기를 새 간격으로 갈아치우면 그 대기가
+      // 백오프 중이면 다시 잡지 않는다 — 백오프·서킷 대기를 새 간격으로 갈아치우면 그 대기가
       // 짧아져 실패가 요청 빈도를 올리는 경로가 다시 열린다. 다음 성공 후부터 적용된다.
-      if (failures === 0 && timer !== undefined) {
+      if (!inBackoff() && timer !== undefined) {
         schedule(intervalMs);
       }
     },
 
     refresh() {
       // 실패 중에는 창이 `backoffMs()` 다 — 그 값이 항상 `intervalMs` 이상이므로 버튼으로는
-      // 백오프를 앞당길 수 없다. 로컬 실패는 `failures` 를 올리지 않아 창이 60s 로 남는다 —
-      // 재로그인 직후 버튼이 동작해야 하는 경로이고, 그 fetch 도 상한 60s 를 넘지 않는다.
-      const gapMs = failures === 0 ? MANUAL_MIN_GAP_MS : backoffMs();
+      // 백오프를 앞당길 수 없다. 자격증명 실패 중에는 앞선 요청 실패가 있어도 창이 60s 다 —
+      // 재로그인 직후 버튼이 동작해야 하는 경로이고, 같은 토큰이면 소스가 요청을 막는다.
+      const gapMs = inBackoff() ? backoffMs() : MANUAL_MIN_GAP_MS;
       const waitedMs = Date.now() - lastAttemptAtMs;
       if (waitedMs < gapMs) {
         streamDeck.logger.info(

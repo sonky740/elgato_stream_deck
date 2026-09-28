@@ -85,7 +85,7 @@ The two thresholds do not know about each other, so you can pick a warn threshol
 
 - Refresh — 1 · 3 · 5 · 10 · 30 · 60 min (default 5 min). This is a shared per-provider resource; per-instance intervals would multiply the request rate by the number of instances.
 
-**Refresh now** (button, not a setting) reads the numbers once without waiting for the interval — useful when the interval is long. Requests stay at least a minute apart from the last one, so pressing it right after a poll does nothing, and while the plugin is backing off from a failure it never shortens that wait. It only refreshes the provider whose Property Inspector you opened.
+**Refresh now** (button, not a setting) reads the numbers once without waiting for the interval — useful when the interval is long. Requests stay at least a minute apart from the last one, so pressing it right after a poll does nothing, and while the plugin is backing off from a failure it never shortens that wait. Sign-in failures (missing, expired or rejected token) are not backed off, so it works right after you log in again. It only refreshes the provider whose Property Inspector you opened.
 
 ## Reading the screen
 
@@ -116,7 +116,7 @@ Never done:
 - **No token refresh.** The refresh token rotates as a one-time value, so refreshing here would leave the Claude Code CLI holding an invalid token and log it out. On expiry the plugin shows `Token expired`, and once the CLI refreshes on its next run the plugin recovers on the following poll.
 - **No token in any settings store.** Action settings are plaintext and are included in Stream Deck profile exports.
 - **No response bodies in the log.** Codex usage responses carry `email`, `user_id` and `account_id` in the clear.
-- **No path where failure raises the request rate.** A failed poll always waits at least the poll interval, and from the fourth consecutive failure it moves to a fixed cooldown.
+- **No path where failure raises the request rate.** A failed poll always waits at least the poll interval, and from the fourth consecutive failure it moves to a fixed cooldown. Sign-in failures skip the cooldown because rechecking them sends nothing: an expired token is caught before any request, and a token the server rejected is not resent for 15 minutes unless it changes.
 
 ### statusline hook (optional)
 

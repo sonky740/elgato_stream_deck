@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CodexSource, parseUsage } from './codex';
 
+vi.mock('@elgato/streamdeck', () => ({
+  default: { logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } },
+}));
+
 const FIXTURES = path.join(import.meta.dirname, '..', '..', 'fixtures');
 
 const fixture = (name: string): unknown => {
@@ -120,6 +124,7 @@ describe('CodexSource', () => {
   afterEach(() => {
     delete process.env['CODEX_HOME'];
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   /** exp 를 미래로 둔 JWT. 서명은 검증하지 않으므로 형식만 맞으면 된다. */
@@ -137,6 +142,21 @@ describe('CodexSource', () => {
       }),
     );
   };
+
+  /** 호출마다 새 Response 를 준다 — 같은 인스턴스는 본문을 한 번만 읽을 수 있다. */
+  const stubStatus = (status: number, body: string): ReturnType<typeof vi.fn> => {
+    const spy = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(body, { status, headers: { 'content-type': 'application/json' } }),
+        ),
+      );
+    vi.stubGlobal('fetch', spy);
+    return spy;
+  };
+
+  const inAnHour = (): number => Math.floor(Date.now() / 1000) + 3600;
 
   it('auth.json 이 없으면 요청하지 않고 no-credential', async () => {
     const spy = vi.fn();
@@ -183,5 +203,63 @@ describe('CodexSource', () => {
         ),
     );
     expect((await new CodexSource().fetch()).state).toBe('blocked');
+  });
+
+  it('401 받은 토큰은 다시 보내지 않는다 — 같은 토큰이면 요청 없이 expired', async () => {
+    writeAuth(inAnHour());
+    const spy = stubStatus(401, '{}');
+    const source = new CodexSource();
+    expect((await source.fetch()).state).toBe('expired');
+    expect((await source.fetch()).state).toBe('expired');
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('재로그인으로 토큰이 바뀌면 거부 기억과 무관하게 바로 요청한다', async () => {
+    const exp = inAnHour();
+    writeAuth(exp);
+    const spy = stubStatus(401, '{}');
+    const source = new CodexSource();
+    await source.fetch();
+    // exp 가 다르면 JWT 문자열이 달라진다 — 재로그인으로 새 토큰을 받은 상태다.
+    writeAuth(exp + 1);
+    await source.fetch();
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('거부 기억은 15분 뒤 풀린다 — 같은 토큰도 다시 보낸다', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    writeAuth(inAnHour());
+    const spy = stubStatus(401, '{}');
+    const source = new CodexSource();
+    await source.fetch();
+    vi.setSystemTime(Date.now() + 15 * 60_000);
+    await source.fetch();
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('403 revoked 도 기억한다 — 해결책이 새 자격증명뿐인 실패다', async () => {
+    writeAuth(inAnHour());
+    const spy = stubStatus(403, '{"error":"token revoked"}');
+    const source = new CodexSource();
+    expect((await source.fetch()).state).toBe('revoked');
+    expect((await source.fetch()).state).toBe('revoked');
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('Cloudflare 403 은 기억하지 않는다 — 토큰 탓이 아니라 봇 게이트다', async () => {
+    writeAuth(inAnHour());
+    const html = readFileSync(path.join(FIXTURES, 'codex-cloudflare-challenge.html'), 'utf8');
+    const spy = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(html, { status: 403, headers: { 'content-type': 'text/html' } }),
+        ),
+      );
+    vi.stubGlobal('fetch', spy);
+    const source = new CodexSource();
+    await source.fetch();
+    expect((await source.fetch()).state).toBe('blocked');
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

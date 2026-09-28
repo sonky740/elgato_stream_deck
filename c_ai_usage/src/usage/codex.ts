@@ -1,5 +1,6 @@
 import { isExpired, readCodexCredential } from './credentials';
 import { getJson } from './http';
+import { RejectedToken } from './rejected-token';
 import {
   assignSlots,
   EMPTY_SLOTS,
@@ -22,6 +23,7 @@ const USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
  */
 export class CodexSource implements LimitsSource {
   readonly provider = 'codex' as const;
+  readonly #rejected = new RejectedToken(this.provider);
 
   async fetch(): Promise<FetchResult> {
     const cred = await readCodexCredential();
@@ -31,6 +33,10 @@ export class CodexSource implements LimitsSource {
     // 만료 선판정. auth.json 에 만료 필드가 없어 JWT `exp` 를 디코드한 값을 쓴다.
     if (isExpired(cred.expiresAtMs, Date.now())) {
       return { state: 'expired', slots: EMPTY_SLOTS };
+    }
+    const recalled = this.#rejected.recall(cred.accessToken, Date.now());
+    if (recalled !== null) {
+      return { state: recalled, slots: EMPTY_SLOTS };
     }
 
     const headers: Record<string, string> = { Authorization: `Bearer ${cred.accessToken}` };
@@ -42,6 +48,7 @@ export class CodexSource implements LimitsSource {
     // 인증 실패와 구분할 수 없는 엉뚱한 에러가 된다.
     const res = await getJson(USAGE_URL, headers);
     if (res.kind === 'failed') {
+      this.#rejected.note(cred.accessToken, res.state, Date.now());
       return { state: res.state, slots: EMPTY_SLOTS };
     }
     return parseUsage(res.body);

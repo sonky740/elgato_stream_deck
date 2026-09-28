@@ -1,5 +1,10 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ClaudeSource } from './claude';
+import { CodexSource } from './codex';
 import { createUsageService, type UsageService } from './service';
 import type { FetchResult, LimitsSource, SourceState, UsageViewModel } from './types';
 
@@ -13,8 +18,6 @@ const STALE_LIMIT = 30 * 60_000;
 const MANUAL_GAP = 60_000;
 /** 첫 fetch 의 jitter 상한(service.ts 와 같은 값). 이 시간을 넘기면 확실히 발화한다. */
 const JITTER = 5000;
-/** 로컬 실패를 백오프 없이 재확인하는 횟수 상한(service.ts 의 LOCAL_RETRY_LIMIT 과 같은 값). */
-const LOCAL_RETRY_LIMIT = 3;
 
 const OK_SLOTS: FetchResult = {
   state: 'ok',
@@ -174,42 +177,19 @@ describe('createUsageService', () => {
     expect(gaps[2]).toBeGreaterThanOrEqual(gaps[1] ?? 0);
   });
 
-  it('로컬 자격증명 실패는 백오프 없이 정상 간격으로 다시 확인한다 — 요청을 만들지 않는 실패다', async () => {
-    const source = fakeSource([EXPIRED]);
-    collect(source);
-    await firstFetch();
-    // network 실패였다면 여기서 interval*2 를 기다려야 재요청이 온다.
-    await vi.advanceTimersByTimeAsync(INTERVAL);
-    expect(source.calls).toBe(2);
-  });
-
-  it('로컬 실패가 상한을 넘으면 백오프로 넘어간다 — 401 도 expired 로 오므로 영원히 열어두지 않는다', async () => {
-    const source = fakeSource([EXPIRED]);
-    collect(source);
-    await firstFetch();
-    for (let i = 0; i < LOCAL_RETRY_LIMIT; i += 1) {
-      await vi.advanceTimersByTimeAsync(INTERVAL);
-    }
-    expect(source.calls).toBe(1 + LOCAL_RETRY_LIMIT);
-    // 상한을 쓴 뒤로는 일반 백오프(interval*2)다.
-    await vi.advanceTimersByTimeAsync(INTERVAL);
-    expect(source.calls).toBe(1 + LOCAL_RETRY_LIMIT);
-    await vi.advanceTimersByTimeAsync(INTERVAL + 1);
-    expect(source.calls).toBe(2 + LOCAL_RETRY_LIMIT);
-  });
-
-  it('성공하면 로컬 실패 상한이 리셋된다 — 토큰은 주기적으로 만료되므로 한 번 쓰고 닫히면 안 된다', async () => {
-    const source = fakeSource([EXPIRED, EXPIRED, EXPIRED, OK_SLOTS, EXPIRED]);
-    collect(source);
-    await firstFetch();
-    // 로컬 재확인 3회 중 마지막이 성공 → 그 뒤 실패도 다시 정상 간격으로 재확인된다.
-    for (let i = 0; i < LOCAL_RETRY_LIMIT + 1; i += 1) {
-      await vi.advanceTimersByTimeAsync(INTERVAL);
-    }
-    expect(source.calls).toBe(1 + LOCAL_RETRY_LIMIT + 1);
-    await vi.advanceTimersByTimeAsync(INTERVAL);
-    expect(source.calls).toBe(2 + LOCAL_RETRY_LIMIT + 1);
-  });
+  it.each<SourceState>(['no-credential', 'expired', 'revoked', 'forbidden'])(
+    '자격증명 실패(%s)는 상한 없이 정상 간격으로 다시 확인한다 — 같은 토큰으로는 소스가 요청하지 않는다',
+    async (state) => {
+      const source = fakeSource([{ state, slots: { fiveHour: null, week: null } }]);
+      collect(source);
+      await firstFetch();
+      // network 실패였다면 첫 재요청부터 interval*2 를 기다린다. 옛 상한(3회)도 넘긴다.
+      for (let i = 1; i <= 10; i += 1) {
+        await vi.advanceTimersByTimeAsync(INTERVAL);
+        expect(source.calls).toBe(1 + i);
+      }
+    },
+  );
 
   it('구독이 끊기면 폴링을 멈춘다', async () => {
     const source = fakeSource([OK_SLOTS]);
@@ -287,6 +267,23 @@ describe('setIntervalMs', () => {
     expect(source.calls).toBe(1);
     off();
   });
+
+  it('앞선 요청 실패가 있어도 자격증명 실패 중에는 새 간격이 바로 적용된다 — 짧아질 백오프 대기가 없다', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const source = fakeSource([
+      { state: 'network', slots: { fiveHour: null, week: null } },
+      EXPIRED,
+    ]);
+    const { service } = collect(source);
+    await vi.advanceTimersByTimeAsync(1);
+    // network 뒤 대기(INTERVAL*2)를 지나 expired 가 오고, 다음 재확인은 INTERVAL 뒤로 잡힌다.
+    await vi.advanceTimersByTimeAsync(INTERVAL * 2);
+    expect(source.calls).toBe(2);
+
+    service.setIntervalMs(60_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(source.calls).toBe(3);
+  });
 });
 
 describe('refresh (PI 수동 새로고침)', () => {
@@ -336,6 +333,35 @@ describe('refresh (PI 수동 새로고침)', () => {
     expect(source.calls).toBe(2);
   });
 
+  it('로컬 실패가 오래 이어져도 버튼이 열려 있다 — 밤새 만료된 토큰을 아침에 재로그인하는 경로다', async () => {
+    const source = fakeSource([EXPIRED]);
+    const { service } = collect(source);
+    await firstFetch();
+    // 3회 재확인 + 서킷 진입(연속 4회)을 넉넉히 넘긴다. 실측 사고에서는 45시간이었다.
+    await vi.advanceTimersByTimeAsync(INTERVAL * 20);
+    const before = source.calls;
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(before + 1);
+  });
+
+  it('앞선 요청 실패가 있어도 자격증명 실패 중에는 버튼이 열려 있다 — 깨어날 때 한 번 끊긴 네트워크가 재로그인을 막지 않게', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const source = fakeSource([
+      { state: 'network', slots: { fiveHour: null, week: null } },
+      EXPIRED,
+    ]);
+    const { service } = collect(source);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(INTERVAL * 5);
+    const before = source.calls;
+    await vi.advanceTimersByTimeAsync(MANUAL_GAP);
+    service.refresh();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(source.calls).toBe(before + 1);
+  });
+
   it('수동 fetch 뒤 다음 자동 폴링은 그 시점부터 다시 센다 — 수동도 성공한 fetch 다', async () => {
     // jitter 를 0 으로 고정한다. 흔들리면 "원래 tick" 과 "수동 이후 tick" 을 시각으로 구분할 수
     // 없어, 옛 타이머가 남아 있는 구현도 통과한다.
@@ -356,5 +382,62 @@ describe('refresh (PI 수동 새로고침)', () => {
     // 수동 fetch 시점 + INTERVAL 을 넘기면 다시 돈다.
     await vi.advanceTimersByTimeAsync(MANUAL_GAP);
     expect(source.calls).toBe(3);
+  });
+});
+
+describe('거부 토큰 합성 (서비스 + 실제 소스)', () => {
+  // 가짜 소스는 요청을 모델링하지 않는다 — 규칙 10 의 요청률은 서비스와 소스가 함께 있어야 성립한다.
+  beforeEach(() => {
+    // 실제 소스는 파일을 읽는다. 가짜 타이머 전체를 쓰면 I/O 를 기다리지 않고 시간만 흘러 폴링이 1회로 끝난다.
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'c-ai-usage-compose-'));
+    const payload = Buffer.from(JSON.stringify({ exp: 4102444800 })).toString('base64url');
+    writeFileSync(
+      path.join(dir, 'auth.json'),
+      JSON.stringify({ tokens: { access_token: `eyJhbGciOiJSUzI1NiJ9.${payload}.sig` } }),
+    );
+    process.env['CODEX_HOME'] = dir;
+    process.env['CLAUDE_CODE_OAUTH_TOKEN'] = 'sk-ant-oat01-compose-token';
+    process.env['C_AI_USAGE_STATUSLINE_CACHE'] = path.join(dir, 'no-cache.json');
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(
+            new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } }),
+          ),
+        ),
+    );
+  });
+  afterEach(() => {
+    delete process.env['CODEX_HOME'];
+    delete process.env['CLAUDE_CODE_OAUTH_TOKEN'];
+    delete process.env['C_AI_USAGE_STATUSLINE_CACHE'];
+    vi.unstubAllGlobals();
+  });
+
+  /** 폴링 하나가 끝나 emit 할 때까지 실제 이벤트 루프를 돌린다. */
+  const until = async (done: () => boolean): Promise<void> => {
+    for (let i = 0; i < 1000 && !done(); i += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    expect(done()).toBe(true);
+  };
+
+  it.each([
+    ['codex', (): LimitsSource => new CodexSource()],
+    ['claude', (): LimitsSource => new ClaudeSource()],
+  ])('%s: 거부된 토큰은 1시간 폴링하는 동안 15분에 한 번만 다시 보낸다', async (_name, make) => {
+    const { seen } = collect(make());
+    // 0분부터 60분까지 폴링 13회. 요청은 0·15·30·45·60분의 5회뿐이다 — 배선이 빠지면 13회가 된다.
+    for (let poll = 1; poll <= 13; poll += 1) {
+      await vi.advanceTimersByTimeAsync(poll === 1 ? 1 : INTERVAL);
+      // seen[0] 은 구독 즉시의 loading 이다.
+      await until(() => seen.length > poll);
+    }
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(5);
   });
 });

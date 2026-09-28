@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ClaudeSource } from './claude';
 
+vi.mock('@elgato/streamdeck', () => ({
+  default: { logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } },
+}));
+
 const FIXTURES = path.join(import.meta.dirname, '..', '..', 'fixtures');
 
 let statuslineCache: string;
@@ -36,6 +40,7 @@ afterEach(() => {
   delete process.env['C_AI_USAGE_STATUSLINE_CACHE'];
   delete process.env['CLAUDE_CODE_OAUTH_TOKEN'];
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('ClaudeSource 2단 읽기', () => {
@@ -111,5 +116,47 @@ describe('ClaudeSource 2단 읽기', () => {
   it('빈 본문을 unentitled 로 되돌린다', async () => {
     stubFetch(readFileSync(path.join(FIXTURES, 'claude-usage-unentitled.json'), 'utf8'));
     expect((await new ClaudeSource().fetch()).state).toBe('unentitled');
+  });
+
+  describe('거부 토큰 기억', () => {
+    /** 호출마다 새 Response 를 준다 — 같은 인스턴스는 본문을 한 번만 읽을 수 있다. */
+    const stub401 = (): ReturnType<typeof vi.fn> => {
+      const spy = vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(
+            new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } }),
+          ),
+        );
+      vi.stubGlobal('fetch', spy);
+      return spy;
+    };
+
+    it('401 받은 토큰은 다시 보내지 않는다 — 같은 토큰이면 요청 없이 expired', async () => {
+      const spy = stub401();
+      const source = new ClaudeSource();
+      expect((await source.fetch()).state).toBe('expired');
+      expect((await source.fetch()).state).toBe('expired');
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('재로그인으로 토큰이 바뀌면 바로 요청한다', async () => {
+      const spy = stub401();
+      const source = new ClaudeSource();
+      await source.fetch();
+      process.env['CLAUDE_CODE_OAUTH_TOKEN'] = 'sk-ant-oat01-renewed-token-value';
+      await source.fetch();
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('거부 기억은 15분 뒤 풀린다 — 같은 토큰도 다시 보낸다', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const spy = stub401();
+      const source = new ClaudeSource();
+      await source.fetch();
+      vi.setSystemTime(Date.now() + 15 * 60_000);
+      await source.fetch();
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
   });
 });

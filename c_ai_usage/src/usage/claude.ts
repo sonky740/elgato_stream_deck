@@ -1,6 +1,7 @@
 import { isExpired, readClaudeCredential } from './credentials';
 import { getJson } from './http';
 import { readStatuslineSlots } from './claude-statusline';
+import { RejectedToken } from './rejected-token';
 import {
   assignSlots,
   EMPTY_SLOTS,
@@ -23,6 +24,7 @@ const WEEK_SEC = 7 * 24 * 60 * 60;
  */
 export class ClaudeSource implements LimitsSource {
   readonly provider = 'claude' as const;
+  readonly #rejected = new RejectedToken(this.provider);
 
   async fetch(): Promise<FetchResult> {
     const now = Date.now();
@@ -40,6 +42,10 @@ export class ClaudeSource implements LimitsSource {
     if (isExpired(cred.expiresAtMs, now)) {
       return { state: 'expired', slots: EMPTY_SLOTS };
     }
+    const recalled = this.#rejected.recall(cred.accessToken, now);
+    if (recalled !== null) {
+      return { state: recalled, slots: EMPTY_SLOTS };
+    }
 
     const res = await getJson(USAGE_URL, {
       Authorization: `Bearer ${cred.accessToken}`,
@@ -47,6 +53,7 @@ export class ClaudeSource implements LimitsSource {
       'Content-Type': 'application/json',
     });
     if (res.kind === 'failed') {
+      this.#rejected.note(cred.accessToken, res.state, Date.now());
       return { state: res.state, slots: EMPTY_SLOTS };
     }
     return parseUsage(res.body);
