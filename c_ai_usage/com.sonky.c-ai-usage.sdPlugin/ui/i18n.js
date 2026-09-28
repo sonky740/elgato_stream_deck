@@ -33,7 +33,7 @@ SDPIComponents.i18n.locales = {
     helpThresholds:
       '<b>주의 임계</b> 이상은 amber, <b>위험 임계</b> 이상은 red 로 그립니다. 남은양 기준에서는 임계가 뒤집혀 <b>남은 20%</b> 와 <b>사용 80%</b> 가 같은 색입니다. 주의 임계를 위험 임계보다 높게 고르면 위험 임계에 맞춰지고 amber 단계가 없어집니다.',
     helpRefresh:
-      '<b>지금 새로고침</b>은 갱신 주기를 기다리지 않고 즉시 한 번 읽어옵니다. 요청은 마지막 조회로부터 <b>최소 1분</b> 간격이라 방금 읽어온 직후에 누르면 아무 일도 하지 않고, 실패해서 재시도를 기다리는 중에는 그 대기를 앞당기지 않습니다.',
+      '<b>지금 새로고침</b>은 갱신 주기를 기다리지 않고 즉시 한 번 읽어옵니다. 요청은 마지막 조회로부터 <b>최소 1분</b> 간격이라 방금 읽어온 직후에 누르면 아무 일도 하지 않고, 실패해서 재시도를 기다리는 중에는 그 대기를 앞당기지 않습니다. 다만 로그인이 풀린 경우에는 기다리는 대기가 없어서, 다시 로그인한 직후 누르면 바로 읽어옵니다.',
     helpSourceClaude:
       '수치는 <b>Claude 계정에서 직접</b> 읽어옵니다 — 기기별 로컬 기록이 아니라 계정 전체 사용량이므로 여러 기기에서 쓴 양이 합산됩니다.',
     helpSourceCodex:
@@ -69,7 +69,7 @@ SDPIComponents.i18n.locales = {
     helpThresholds:
       'Values at or above <b>Warn at</b> are drawn amber, at or above <b>Critical at</b> red. On the Remaining basis the thresholds flip, so <b>20% left</b> and <b>80% used</b> share one color. Choosing a warn threshold above the critical one pulls it down to the critical value, which removes the amber step.',
     helpRefresh:
-      '<b>Refresh now</b> reads the numbers once without waiting for the refresh interval. Requests stay <b>at least a minute</b> apart, so pressing it right after a poll does nothing, and while the plugin is waiting to retry a failure it never shortens that wait.',
+      '<b>Refresh now</b> reads the numbers once without waiting for the refresh interval. Requests stay <b>at least a minute</b> apart, so pressing it right after a poll does nothing, and while the plugin is waiting to retry a failure it never shortens that wait. Sign-in failures (missing, expired or rejected token) are not backed off, so it works right after you log in again.',
     helpSourceClaude:
       'The numbers are read <b>straight from your Claude account</b> — this is account-wide usage rather than a per-device log, so everything you used on other devices is included.',
     helpSourceCodex:
